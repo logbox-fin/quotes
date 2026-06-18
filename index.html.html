@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Quotes — LogBox</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --ink:       #0a0a0f;
+  --ink-2:     #1c1c27;
+  --ink-3:     #2e2e3e;
+  --muted:     #6b6b80;
+  --muted-2:   #9898aa;
+  --border:    #e8e8f0;
+  --border-2:  #f0f0f5;
+  --surface:   #ffffff;
+  --surface-2: #f7f7fb;
+  --surface-3: #f0f0f5;
+  --accent:    #5b5fc7;
+  --accent-2:  #7b7fe8;
+  --accent-bg: #f0f0ff;
+  --green:     #0d7a4e;
+  --green-bg:  #e6faf3;
+  --green-br:  #a3e8cc;
+  --yellow:    #8a5c00;
+  --yellow-bg: #fff8e6;
+  --yellow-br: #ffd466;
+  --red:       #c0392b;
+  --red-bg:    #fdf0ef;
+  --red-br:    #f5b5af;
+  --sidebar-w: 220px;
+  --radius:    16px;
+  --radius-sm: 10px;
+  --radius-xs: 7px;
+  --shadow-xs: 0 1px 2px rgba(10,10,15,.05);
+  --shadow-sm: 0 2px 8px rgba(10,10,15,.07);
+  --shadow-md: 0 8px 32px rgba(10,10,15,.12);
+  --shadow-lg: 0 20px 64px rgba(10,10,15,.18);
+  --t: .18s cubic-bezier(.4,0,.2,1);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{height:100%;scroll-behavior:smooth;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--surface-2);color:var(--ink);min-height:100%;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+/* ════ LAYOUT ════ */
+.app-shell{display:flex;min-height:100dvh;}
+
+/* ── SIDEBAR (desktop) ── */
+.sidebar{
+  width:var(--sidebar-w);background:var(--ink);color:white;
+  position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;
+  z-index:200;overflow-y:auto;
+  transition:transform var(--t);
+}
+.sidebar-logo{
+  padding:20px 18px 16px;font-size:20px;font-weight:900;letter-spacing:-1px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.sidebar-logo em{font-style:normal;color:var(--accent-2);}
+.sidebar-logo span{display:block;font-size:10px;font-weight:500;color:rgba(255,255,255,.35);letter-spacing:.5px;margin-top:2px;}
+.sidebar-nav{padding:10px 10px;display:flex;flex-direction:column;gap:2px;flex:1;}
+.sidebar-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;font-size:13px;font-weight:600;color:rgba(255,255,255,.5);
+  cursor:pointer;border:none;background:none;width:100%;text-align:left;
+  transition:all var(--t);letter-spacing:-.1px;
+}
+.sidebar-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);}
+.sidebar-item.active{background:rgba(91,95,199,.25);color:white;}
+.sidebar-item .s-icon{font-size:16px;flex-shrink:0;opacity:.7;}
+.sidebar-item.active .s-icon{opacity:1;}
+.sidebar-footer{padding:14px 18px;font-size:10px;color:rgba(255,255,255,.18);border-top:1px solid rgba(255,255,255,.06);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+
+/* ── MAIN (desktop) ── */
+.main-area{margin-left:var(--sidebar-w);min-height:100dvh;width:calc(100vw - var(--sidebar-w));overflow-x:hidden;}
+.page{display:none;width:100%;min-height:100dvh;}
+.page.active{display:block;}
+.page-content{width:100%;padding:32px 32px;}
+
+/* ── TOP BAR (desktop) ── */
+.desktop-topbar{
+  background:rgba(255,255,255,.88);
+  backdrop-filter:saturate(200%) blur(16px);
+  -webkit-backdrop-filter:saturate(200%) blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:0 32px;height:58px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.desktop-topbar-title{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.4px;}
+.desktop-topbar-sub{font-size:12px;color:var(--muted);margin-top:1px;}
+
+/* ── MOBILE TOPBAR ── */
+.mobile-topbar{
+  display:none;position:sticky;top:0;z-index:100;
+  background:rgba(255,255,255,.88);
+  backdrop-filter:saturate(200%) blur(16px);
+  -webkit-backdrop-filter:saturate(200%) blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:0 16px;height:54px;
+  align-items:center;gap:10px;
+}
+.mob-back{
+  width:34px;height:34px;border-radius:50%;background:var(--surface-3);
+  border:none;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--ink-3);font-size:18px;flex-shrink:0;
+  transition:background var(--t);
+}
+.mob-back:active{background:var(--border);}
+.mob-title{font-size:15px;font-weight:800;color:var(--ink);flex:1;letter-spacing:-.4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mob-sub{font-size:11px;color:var(--muted);font-weight:500;}
+
+/* ── BOTTOM NAV (mobile) ── */
+.bottom-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);
+  justify-content:space-around;
+  padding:8px 0 max(10px,env(safe-area-inset-bottom));
+  z-index:100;
+}
+.bnav-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:4px 20px;border:none;background:none;cursor:pointer;
+  color:var(--muted-2);font-size:9px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  transition:color var(--t);
+}
+.bnav-item .bn-icon{font-size:20px;line-height:1;}
+.bnav-item.active{color:var(--accent);}
+
+/* ── FAB (mobile) ── */
+.fab{
+  display:none;position:fixed;bottom:82px;right:16px;
+  width:52px;height:52px;border-radius:16px;
+  background:var(--ink);color:white;border:none;font-size:24px;
+  cursor:pointer;box-shadow:0 4px 20px rgba(10,10,15,.28);
+  align-items:center;justify-content:center;z-index:90;
+  transition:transform var(--t);font-weight:300;
+}
+.fab:active{transform:scale(.9);}
+
+/* ── CONTENT ── */
+.content{padding:16px;display:flex;flex-direction:column;gap:12px;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;}
+.card-header{padding:14px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;justify-content:space-between;}
+.card-header-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;}
+.card-body{padding:16px;}
+
+/* ── SEARCH BAR ── */
+.search-wrap{position:relative;}
+.search-wrap input{
+  width:100%;padding:10px 14px 10px 38px;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  font-size:14px;background:var(--surface);color:var(--ink);
+  font-family:inherit;font-weight:500;transition:border-color var(--t),box-shadow var(--t);
+}
+.search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,95,199,.12);}
+.search-wrap::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;}
+
+/* ── FIELDS ── */
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field select,.field textarea{
+  padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  font-size:15px;background:var(--surface);color:var(--ink);width:100%;
+  -webkit-appearance:none;appearance:none;transition:border-color var(--t),box-shadow var(--t);
+  font-family:inherit;font-weight:500;
+}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,95,199,.12);}
+.field input::placeholder{color:var(--muted-2);font-weight:400;}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:11px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;
+  cursor:pointer;border:none;transition:all var(--t);display:inline-flex;
+  align-items:center;justify-content:center;gap:6px;font-family:inherit;letter-spacing:-.2px;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:white;box-shadow:0 2px 8px rgba(91,95,199,.3);}
+.btn-primary:hover{background:#4a4eb0;}
+.btn-secondary{background:var(--surface);color:var(--ink-3);border:1.5px solid var(--border);box-shadow:var(--shadow-xs);}
+.btn-secondary:hover{background:var(--surface-2);}
+.btn-ghost{background:transparent;color:var(--muted);border:none;}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);}
+.btn-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-br);}
+.btn-dark{background:var(--ink);color:white;box-shadow:0 2px 8px rgba(10,10,15,.2);}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:var(--radius-xs);}
+.btn-xs{padding:4px 9px;font-size:11px;border-radius:6px;font-weight:700;}
+.btn-block{width:100%;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-br);}
+.badge-yellow{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-br);}
+.badge-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);}
+.badge-gray{background:var(--surface-3);color:var(--muted);}
+.badge-blue{background:var(--accent-bg);color:var(--accent);}
+
+/* ── STAT CARDS ── */
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.stat-card{background:var(--surface);border-radius:var(--radius-sm);padding:14px 16px;border:1px solid var(--border);box-shadow:var(--shadow-xs);}
+.stat-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.stat-value{font-size:20px;font-weight:900;color:var(--ink);letter-spacing:-.5px;}
+.stat-card.dark{background:var(--ink);border-color:var(--ink-2);}
+.stat-card.dark .stat-label{color:rgba(255,255,255,.4);}
+.stat-card.dark .stat-value{color:white;}
+.stat-card.accent{background:var(--accent);border-color:var(--accent);}
+.stat-card.accent .stat-label{color:rgba(255,255,255,.6);}
+.stat-card.accent .stat-value{color:white;}
+
+/* ── PROD CARD ── */
+.prod-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:10px;}
+.prod-card-header{padding:14px 16px;background:var(--surface-2);border-bottom:1px solid var(--border-2);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.prod-card-name{font-weight:800;font-size:15px;color:var(--ink);letter-spacing:-.4px;display:flex;align-items:center;gap:6px;}
+.prod-card-sku{font-size:11px;color:var(--muted-2);margin-top:3px;}
+.prod-card-body{padding:14px 16px;}
+.prod-cmv-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+
+/* ── MKT SECTION ── */
+.mkt-section{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:8px;}
+.mkt-section-header{padding:10px 14px;background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-2);}
+.mkt-section-name{font-size:13px;font-weight:700;color:var(--ink-3);letter-spacing:-.2px;}
+.mkt-section-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+.mkt-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mkt-input-group{display:flex;flex-direction:column;gap:3px;}
+.mkt-input-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+.mkt-input{padding:9px 11px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:14px;width:100%;background:var(--surface);color:var(--ink);-webkit-appearance:none;font-family:inherit;font-weight:500;transition:border-color var(--t);}
+.mkt-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,95,199,.1);}
+
+/* ── NCM BOX ── */
+.ncm-option-box{background:var(--accent-bg);border:1.5px solid rgba(91,95,199,.25);border-radius:var(--radius-sm);padding:14px;}
+.ncm-option-title{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:5px;}
+.ncm-option-sub{font-size:12px;color:var(--ink-3);margin-bottom:10px;line-height:1.4;}
+.ncm-option-btns{display:flex;gap:8px;}
+
+/* ── LIST ITEMS ── */
+.list-item{padding:14px 16px;border-bottom:1px solid var(--border-2);cursor:pointer;transition:background var(--t);display:flex;align-items:center;gap:12px;}
+.list-item:last-child{border-bottom:none;}
+.list-item:active{background:var(--surface-2);}
+.list-item-icon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:var(--surface-3);}
+.list-item-body{flex:1;min-width:0;}
+.list-item-title{font-weight:700;font-size:15px;color:var(--ink);letter-spacing:-.3px;}
+.list-item-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.list-item-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
+
+/* ── SECTION TITLE ── */
+.section-title{font-size:10px;font-weight:700;color:var(--muted-2);text-transform:uppercase;letter-spacing:.7px;padding:8px 0 4px;border-top:1px solid var(--border-2);margin-top:2px;}
+
+/* ── BOTTOM SHEET ── */
+.sheet-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,15,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;align-items:flex-end;}
+.sheet-overlay.open{display:flex;}
+.sheet{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:93dvh;overflow-y:auto;padding:0 0 max(24px,env(safe-area-inset-bottom));animation:slideUp .3s cubic-bezier(.32,.72,0,1);}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;}
+.sheet-header{padding:16px 16px 14px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;justify-content:space-between;}
+.sheet-title{font-size:18px;font-weight:900;color:var(--ink);letter-spacing:-.5px;}
+.sheet-close{background:var(--surface-3);border:none;border-radius:50%;width:30px;height:30px;font-size:17px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.sheet-body{padding:16px;display:flex;flex-direction:column;gap:12px;}
+
+/* ── MODAL (desktop) ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,15,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;padding:24px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px;width:100%;max-width:520px;max-height:90dvh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:popIn .22s cubic-bezier(.32,.72,0,1);}
+@keyframes popIn{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:17px;font-weight:900;color:var(--ink);letter-spacing:-.4px;}
+.modal-close{background:var(--surface-3);border:none;border-radius:50%;width:30px;height:30px;font-size:17px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:12px;}
+.modal-footer{padding:14px 24px;border-top:1px solid var(--border-2);display:flex;gap:10px;justify-content:flex-end;}
+
+/* ── CONFIRM ── */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,15,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:600;align-items:center;justify-content:center;padding:24px;}
+.confirm-overlay.open{display:flex;}
+.confirm-box{background:var(--surface);border-radius:24px;padding:28px 20px;width:100%;max-width:320px;box-shadow:var(--shadow-lg);animation:popIn .22s cubic-bezier(.32,.72,0,1);}
+.confirm-title{font-size:18px;font-weight:900;color:var(--ink);text-align:center;margin-bottom:8px;letter-spacing:-.4px;}
+.confirm-msg{font-size:13px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:20px;}
+.confirm-btns{display:flex;gap:8px;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:max(90px,env(safe-area-inset-bottom)+90px);left:50%;transform:translateX(-50%) translateY(8px);background:var(--ink);color:white;padding:11px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;max-width:88vw;text-align:center;box-shadow:0 8px 24px rgba(10,10,15,.25);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── RESUMO ── */
+.resumo-header{background:linear-gradient(135deg,var(--ink) 0%,var(--ink-2) 100%);border-radius:var(--radius);padding:20px;color:white;margin-bottom:12px;}
+.resumo-header-title{font-size:18px;font-weight:900;letter-spacing:-.5px;margin-bottom:12px;}
+.resumo-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.resumo-stat{background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;}
+.resumo-stat-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.resumo-stat-value{font-size:16px;font-weight:900;color:white;letter-spacing:-.4px;}
+
+.resumo-prod{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:10px;}
+.resumo-prod-header{padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--border-2);}
+.resumo-prod-name{font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.3px;}
+.resumo-prod-info{font-size:11px;color:var(--muted);margin-top:2px;}
+.resumo-mkt-grid{padding:12px;display:flex;flex-direction:column;gap:6px;}
+.resumo-mkt-card{
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;
+  cursor:pointer;transition:all var(--t);display:flex;align-items:center;justify-content:space-between;
+}
+.resumo-mkt-card:active{transform:scale(.98);}
+.resumo-mkt-card:hover{border-color:var(--accent);background:var(--accent-bg);}
+.resumo-mkt-name{font-size:13px;font-weight:700;color:var(--ink-3);letter-spacing:-.2px;}
+.resumo-mkt-preco{font-size:12px;color:var(--muted);margin-top:2px;}
+.resumo-mkt-right{display:flex;align-items:center;gap:8px;}
+
+/* ── NCM CARD ── */
+.ncm-card{padding:14px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:flex-start;gap:12px;}
+.ncm-card:last-child{border-bottom:none;}
+.ncm-card-icon{width:40px;height:40px;border-radius:10px;background:var(--yellow-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.ncm-card-body{flex:1;}
+.ncm-card-name{font-size:14px;font-weight:700;color:var(--ink);letter-spacing:-.2px;}
+.ncm-card-number{font-size:13px;color:var(--muted);margin-top:2px;font-weight:500;}
+.ncm-card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.ncm-card-actions{display:flex;gap:6px;align-items:center;}
+
+/* ── CONFIG ── */
+.config-section{margin-bottom:20px;}
+.config-section-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.config-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:16px;box-shadow:var(--shadow-xs);}
+
+/* ── EMPTY ── */
+.empty{padding:56px 24px;text-align:center;}
+.empty-emoji{font-size:52px;margin-bottom:16px;display:block;}
+.empty-title{font-size:17px;font-weight:900;color:var(--ink);margin-bottom:6px;letter-spacing:-.4px;}
+.empty-sub{font-size:13px;color:var(--muted);line-height:1.6;}
+
+/* ── DESKTOP TABLE ── */
+.dt-table{width:100%;border-collapse:collapse;}
+.dt-table th{padding:10px 14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;text-align:left;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.dt-table td{padding:12px 14px;font-size:13px;color:var(--ink-3);border-bottom:1px solid var(--border-2);}
+.dt-table tbody tr:hover{background:var(--surface-2);}
+.dt-table tbody tr:last-child td{border-bottom:none;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:767px){
+  .sidebar{display:none;}
+  .main-area{margin-left:0;width:100%;}
+  .desktop-topbar{display:none;}
+  .mobile-topbar{display:flex;}
+  .bottom-nav{display:flex;}
+  .fab{display:flex;}
+  .page-content{padding:0;}
+  .stat-row{grid-template-columns:1fr 1fr;}
+  .g3{grid-template-columns:1fr 1fr;}
+  .g4{grid-template-columns:1fr 1fr;}
+  .prod-cmv-row{grid-template-columns:1fr 1fr 1fr;}
+  .resumo-stats{grid-template-columns:1fr 1fr 1fr;}
+  #desktop-add-btn{display:none;}
+  .page.active{padding-bottom:80px;}
+  #mobile-fab-lotes,#mobile-fab-ncm{display:flex;}
+}
+@media(min-width:768px){
+  .bottom-nav{display:none !important;}
+  .fab{display:none !important;}
+  .mobile-topbar{display:none !important;}
+  .desktop-topbar{display:flex;}
+  .content{padding:0;}
+  .page-content{padding:32px;}
+  .sheet-overlay{align-items:center;}
+  .sheet{border-radius:20px;max-width:560px;margin:0 auto;}
+  @keyframes slideUp{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
+  .stat-row{grid-template-columns:repeat(3,1fr);}
+}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- ══ SIDEBAR (desktop) ══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">Quot<em>es</em><span>by LogBox</span></div>
+  <nav class="sidebar-nav">
+    <button class="sidebar-item" onclick="showPage('config',this)"><span class="s-icon">⚙️</span> Configurações</button>
+    <button class="sidebar-item" onclick="showPage('ncm',this)"><span class="s-icon">🗂️</span> Banco de NCMs</button>
+    <button class="sidebar-item active" onclick="showPage('lotes',this)"><span class="s-icon">📋</span> Precificações</button>
+  </nav>
+  <div class="sidebar-footer">Quotes v2.0</div>
+</aside>
+
+<!-- ══ MAIN AREA ══ -->
+<div class="main-area">
+
+<!-- ════ PÁGINA: LOTES ════ -->
+<div class="page active" id="page-lotes">
+  <!-- Mobile topbar -->
+  <div class="mobile-topbar">
+    <div class="mob-title">📋 Quotes</div>
+    <button class="btn btn-primary btn-sm" onclick="abrirNovoLote()">＋ Novo</button>
+  </div>
+  <!-- Desktop topbar -->
+  <div class="desktop-topbar">
+    <div><div class="desktop-topbar-title">📋 Quotes</div><div class="desktop-topbar-sub">Lotes de precificação de importação</div></div>
+    <button class="btn btn-primary btn-sm" id="desktop-add-btn" onclick="abrirNovoLote()">＋ Novo Quote</button>
+  </div>
+  <div class="page-content">
+    <div class="content">
+      <!-- Busca + ordenação -->
+      <div class="g2" style="gap:8px;">
+        <div class="search-wrap"><input type="text" id="lotes_search" placeholder="Pesquisar lote..." oninput="renderLotes()"/></div>
+        <button class="btn btn-secondary btn-sm" onclick="toggleOrdemLotes()" id="btn_ordem_lotes">A→Z</button>
+      </div>
+      <div class="card" id="lotes_card">
+        <div id="lotes_body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PÁGINA: EDITOR DO LOTE ════ -->
+<div class="page" id="page-editor">
+  <div class="mobile-topbar">
+    <button class="mob-back" onclick="voltarLista()">←</button>
+    <div style="flex:1;min-width:0;">
+      <div class="mob-title" id="editor_nome_mob">—</div>
+      <div class="mob-sub" id="editor_info_mob" onclick="abrirSheetEditarLote()" style="cursor:pointer;">— <span style="color:var(--accent);font-weight:700;">✏️</span></div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()" style="margin-right:6px;">✏️</button>
+    <button class="btn btn-primary btn-sm" onclick="salvarLote()">💾</button>
+  </div>
+  <div class="desktop-topbar">
+    <div>
+      <div class="desktop-topbar-title" id="editor_nome_desk">—</div>
+      <div class="desktop-topbar-sub" id="editor_info_desk">—</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️ Editar Lote</button>
+      <button class="btn btn-secondary btn-sm" onclick="verResumo()">📊 Resumo</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarLote()">💾 Salvar</button>
+      <button class="btn btn-dark btn-sm" onclick="abrirSheetProduto()">＋ Produto</button>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="content">
+      <div class="stat-row" style="grid-template-columns:1fr 1fr;">
+        <div class="stat-card dark"><div class="stat-label">Produtos</div><div class="stat-value" id="editor_total">0</div></div>
+        <div class="stat-card"><div class="stat-label">Cenário Frete</div><div class="stat-value" id="editor_cenario_badge" style="font-size:14px;">—</div></div>
+      </div>
+      <div id="editor_produtos_list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PÁGINA: RESUMO DO LOTE ════ -->
+<div class="page" id="page-resumo">
+  <div class="mobile-topbar">
+    <button class="mob-back" onclick="voltarEditor()">←</button>
+    <div class="mob-title">📊 Resumo</div>
+  </div>
+  <div class="desktop-topbar">
+    <div><div class="desktop-topbar-title">📊 Resumo do Lote</div><div class="desktop-topbar-sub" id="resumo_sub">—</div></div>
+    <button class="btn btn-secondary btn-sm" onclick="voltarEditor()">← Voltar</button>
+  </div>
+  <div class="page-content">
+    <div class="content" id="resumo_content"></div>
+  </div>
+</div>
+
+<!-- ════ PÁGINA: NCM ════ -->
+<div class="page" id="page-ncm">
+  <div class="mobile-topbar">
+    <div class="mob-title">🗂️ Banco de NCMs</div>
+    <button class="btn btn-primary btn-sm" onclick="abrirSheetNcm()">＋</button>
+  </div>
+  <div class="desktop-topbar">
+    <div><div class="desktop-topbar-title">🗂️ Banco de NCMs</div><div class="desktop-topbar-sub">Alíquotas cadastradas por NCM</div></div>
+    <button class="btn btn-primary btn-sm" onclick="abrirSheetNcm()">＋ Novo NCM</button>
+  </div>
+  <div class="page-content">
+    <div class="content">
+      <div class="search-wrap"><input type="text" id="ncm_search" placeholder="Pesquisar por nome ou NCM..." oninput="renderNCMs()"/></div>
+      <div class="card"><div id="ncm_body"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PÁGINA: CONFIGURAÇÕES ════ -->
+<div class="page" id="page-config">
+  <div class="mobile-topbar">
+    <div class="mob-title">⚙️ Configurações</div>
+  </div>
+  <div class="desktop-topbar">
+    <div><div class="desktop-topbar-title">⚙️ Configurações</div><div class="desktop-topbar-sub">Padrões para novos lotes</div></div>
+  </div>
+  <div class="page-content">
+    <div class="content">
+      <div class="config-card">
+        <div class="config-section-title" style="margin-bottom:14px;">💱 Cotações de Câmbio</div>
+        <div class="g2" style="margin-bottom:12px;">
+          <div class="field"><label>RMB → USD (¥ por $)</label><input type="number" id="cfg_rmb_usd" inputmode="decimal" step="0.001" placeholder="7.00"/></div>
+          <div class="field"><label>USD → BRL ($ por R$)</label><input type="number" id="cfg_usd_brl" inputmode="decimal" step="0.01" placeholder="5.80"/></div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div class="field"><label>Cenário de Frete Padrão</label>
+            <select id="cfg_cenario">
+              <option value="baixo">🟢 Frete Baixo</option>
+              <option value="medio" selected>🟡 Frete Médio</option>
+              <option value="alto">🔴 Frete Alto</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="salvarConfig()">💾 Salvar Configurações</button>
+      </div>
+
+      <div class="config-card">
+        <div class="config-section-title" style="margin-bottom:10px;">📋 Histórico de Cotações</div>
+        <div id="cfg_historico"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav class="bottom-nav">
+  <button class="bnav-item" onclick="showPage('config',this)"><span class="bn-icon">⚙️</span>Config</button>
+  <button class="bnav-item" onclick="showPage('ncm',this)"><span class="bn-icon">🗂️</span>NCMs</button>
+  <button class="bnav-item active" onclick="showPage('lotes',this)"><span class="bn-icon">📋</span>Precificações</button>
+</nav>
+
+<!-- FABs mobile -->
+<button class="fab" id="mobile-fab-lotes" onclick="abrirNovoLote()" style="display:none;">＋</button>
+
+<!-- ══ SHEET: NOVO LOTE ══ -->
+<div class="sheet-overlay" id="sheet_novo_lote">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">Novo Quote</div><button class="sheet-close" onclick="fecharSheet('sheet_novo_lote')">×</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Nome do Lote *</label><input type="text" id="nl_nome" placeholder="Ex: Container Julho 2026"/></div>
+      <div class="field"><label>Cenário de Frete</label>
+        <select id="nl_cenario">
+          <option value="baixo">🟢 Frete Baixo</option>
+          <option value="medio" selected>🟡 Frete Médio</option>
+          <option value="alto">🔴 Frete Alto</option>
+        </select>
+      </div>
+      <div class="section-title">Cotações</div>
+      <div class="g2">
+        <div class="field"><label>RMB → USD</label><input type="number" id="nl_rmb_usd" inputmode="decimal" step="0.001"/></div>
+        <div class="field"><label>USD → BRL</label><input type="number" id="nl_usd_brl" inputmode="decimal" step="0.01"/></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="criarLote()">Criar Quote →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHEET: EDITAR LOTE ══ -->
+<div class="sheet-overlay" id="sheet_editar_lote">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">✏️ Editar Lote</div><button class="sheet-close" onclick="fecharSheet('sheet_editar_lote')">×</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Nome *</label><input type="text" id="el_nome"/></div>
+      <div class="field"><label>Cenário de Frete</label>
+        <select id="el_cenario">
+          <option value="baixo">🟢 Frete Baixo</option>
+          <option value="medio">🟡 Frete Médio</option>
+          <option value="alto">🔴 Frete Alto</option>
+        </select>
+      </div>
+      <div class="section-title">Cotações</div>
+      <div style="background:var(--yellow-bg);border:1px solid var(--yellow-br);border-radius:var(--radius-xs);padding:10px 12px;font-size:12px;color:var(--yellow);font-weight:600;">
+        ⚠️ Alterar recalcula o CMV de todos os produtos do lote.
+      </div>
+      <div class="g2">
+        <div class="field"><label>RMB → USD</label><input type="number" id="el_rmb_usd" inputmode="decimal" step="0.001"/></div>
+        <div class="field"><label>USD → BRL</label><input type="number" id="el_usd_brl" inputmode="decimal" step="0.01"/></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="salvarEdicaoLote()">Salvar Alterações →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHEET: PRODUTO ══ -->
+<div class="sheet-overlay" id="sheet_produto">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title" id="sheet_prod_title">＋ Produto</div><button class="sheet-close" onclick="fecharSheet('sheet_produto')">×</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Nome *</label><input type="text" id="mp_nome" placeholder="Nome do produto"/></div>
+      <div class="g2">
+        <div class="field"><label>SKU</label><input type="text" id="mp_sku"/></div>
+        <div class="field"><label>Categoria</label>
+          <select id="mp_cat">
+            <option value="bom">🟢 Bom</option>
+            <option value="medio" selected>🟡 Médio</option>
+            <option value="ruim">🔴 Ruim</option>
+          </select>
+        </div>
+      </div>
+      <div class="section-title">NCM e Alíquotas</div>
+      <div class="field">
+        <label>NCM</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="mp_ncm" placeholder="0000.00.00" oninput="formatNCM(this)" style="flex:1;"/>
+          <button class="btn btn-secondary btn-sm" onclick="buscarNCM()">Buscar</button>
+        </div>
+      </div>
+      <div id="ncm_found_box" style="display:none;" class="ncm-option-box">
+        <div class="ncm-option-title">✅ NCM encontrado!</div>
+        <div class="ncm-option-sub" id="ncm_found_desc">—</div>
+        <div class="ncm-option-btns">
+          <button class="btn btn-primary btn-sm" onclick="ncmCopiar()">Copiar alíquotas</button>
+          <button class="btn btn-secondary btn-sm" onclick="ncmEditarManual()">Editar manualmente</button>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="field"><label>II %</label><input type="number" id="mp_ii" value="0" inputmode="decimal" step="0.01"/></div>
+        <div class="field"><label>IPI %</label><input type="number" id="mp_ipi" value="0" inputmode="decimal" step="0.01"/></div>
+        <div class="field"><label>COFINS %</label><input type="number" id="mp_cofins" value="9.65" inputmode="decimal" step="0.01"/></div>
+        <div class="field"><label>ICMS %</label><input type="number" id="mp_icms" value="18" inputmode="decimal" step="0.01"/></div>
+      </div>
+      <div id="ncm_save_box" style="display:none;" class="ncm-option-box" style="background:var(--green-bg);border-color:var(--green-br);">
+        <div class="ncm-option-title" style="color:var(--green);">💾 Salvar NCM no banco?</div>
+        <div class="ncm-option-sub">Informe uma descrição para facilitar a busca.</div>
+        <div class="field" style="margin-bottom:8px;"><input type="text" id="ncm_save_desc" placeholder="Ex: Switch de rede 5 portas"/></div>
+        <div class="ncm-option-btns">
+          <button class="btn btn-success btn-sm" onclick="salvarNovoNCM()">✅ Salvar</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('ncm_save_box').style.display='none'">Não</button>
+        </div>
+      </div>
+      <div class="section-title">Custo de Compra</div>
+      <div class="field"><label>Valor RMB ¥ *</label><input type="number" id="mp_rmb" inputmode="decimal" placeholder="0,00" step="0.01"/></div>
+      <div class="section-title">Precificação por Marketplace</div>
+      <!-- ML -->
+      <div class="mkt-section">
+        <div class="mkt-section-header"><div class="mkt-section-name">🛒 Mercado Livre</div><span id="marg_ml" class="badge badge-gray">—</span></div>
+        <div class="mkt-section-body"><div class="mkt-inputs">
+          <div class="mkt-input-group"><div class="mkt-input-label">Preço Venda R$</div><input class="mkt-input" type="number" id="ml_preco" inputmode="decimal" step="0.01" oninput="atualizarMargemInline('ml')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Frete R$</div><input class="mkt-input" type="number" id="ml_frete" value="0" inputmode="decimal" oninput="atualizarMargemInline('ml')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Tarifa %</div><input class="mkt-input" type="number" id="ml_tarifa" value="12" inputmode="decimal" oninput="atualizarMargemInline('ml')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Rebate %</div><input class="mkt-input" type="number" id="ml_rebate" value="0" inputmode="decimal" oninput="atualizarMargemInline('ml')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="ml_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('ml')"/></div>
+        </div></div>
+      </div>
+      <!-- Shopee -->
+      <div class="mkt-section">
+        <div class="mkt-section-header"><div class="mkt-section-name">🛍️ Shopee</div><span id="marg_sp" class="badge badge-gray">—</span></div>
+        <div class="mkt-section-body"><div class="mkt-inputs">
+          <div class="mkt-input-group"><div class="mkt-input-label">Preço Venda R$</div><input class="mkt-input" type="number" id="sp_preco" inputmode="decimal" step="0.01" oninput="atualizarMargemInline('sp')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Frete R$</div><input class="mkt-input" type="number" id="sp_frete" value="4" inputmode="decimal" oninput="atualizarMargemInline('sp')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Tarifa %</div><input class="mkt-input" type="number" id="sp_tarifa" value="20" inputmode="decimal" oninput="atualizarMargemInline('sp')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Rebate %</div><input class="mkt-input" type="number" id="sp_rebate" value="0" inputmode="decimal" oninput="atualizarMargemInline('sp')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="sp_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('sp')"/></div>
+        </div></div>
+      </div>
+      <!-- Amazon -->
+      <div class="mkt-section">
+        <div class="mkt-section-header"><div class="mkt-section-name">📦 Amazon</div><span id="marg_az" class="badge badge-gray">—</span></div>
+        <div class="mkt-section-body"><div class="mkt-inputs">
+          <div class="mkt-input-group"><div class="mkt-input-label">Preço Venda R$</div><input class="mkt-input" type="number" id="az_preco" inputmode="decimal" step="0.01" oninput="atualizarMargemInline('az')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Frete R$</div><input class="mkt-input" type="number" id="az_frete" value="5" inputmode="decimal" oninput="atualizarMargemInline('az')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Tarifa %</div><input class="mkt-input" type="number" id="az_tarifa" value="13" inputmode="decimal" oninput="atualizarMargemInline('az')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Rebate %</div><input class="mkt-input" type="number" id="az_rebate" value="0" inputmode="decimal" oninput="atualizarMargemInline('az')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="az_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('az')"/></div>
+        </div></div>
+      </div>
+      <!-- TikTok -->
+      <div class="mkt-section">
+        <div class="mkt-section-header"><div class="mkt-section-name">🎵 TikTok Shop</div><span id="marg_tkt" class="badge badge-gray">—</span></div>
+        <div class="mkt-section-body"><div class="mkt-inputs">
+          <div class="mkt-input-group"><div class="mkt-input-label">Preço Venda R$</div><input class="mkt-input" type="number" id="tkt_preco" inputmode="decimal" step="0.01" oninput="atualizarMargemInline('tkt')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Frete R$</div><input class="mkt-input" type="number" id="tkt_frete" value="0" inputmode="decimal" oninput="atualizarMargemInline('tkt')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Tarifa %</div><input class="mkt-input" type="number" id="tkt_tarifa" value="12" inputmode="decimal" oninput="atualizarMargemInline('tkt')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Rebate %</div><input class="mkt-input" type="number" id="tkt_rebate" value="0" inputmode="decimal" oninput="atualizarMargemInline('tkt')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="tkt_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('tkt')"/></div>
+        </div></div>
+      </div>
+      <!-- Magalu -->
+      <div class="mkt-section">
+        <div class="mkt-section-header"><div class="mkt-section-name">💙 Magalu</div><span id="marg_mg" class="badge badge-gray">—</span></div>
+        <div class="mkt-section-body"><div class="mkt-inputs">
+          <div class="mkt-input-group"><div class="mkt-input-label">Preço Venda R$</div><input class="mkt-input" type="number" id="mg_preco" inputmode="decimal" step="0.01" oninput="atualizarMargemInline('mg')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Frete R$</div><input class="mkt-input" type="number" id="mg_frete" value="5" inputmode="decimal" oninput="atualizarMargemInline('mg')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Tarifa %</div><input class="mkt-input" type="number" id="mg_tarifa" value="9.9" inputmode="decimal" oninput="atualizarMargemInline('mg')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">Rebate %</div><input class="mkt-input" type="number" id="mg_rebate" value="0" inputmode="decimal" oninput="atualizarMargemInline('mg')"/></div>
+          <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="mg_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('mg')"/></div>
+        </div></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="salvarProduto()">Adicionar Produto →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHEET: NCM ══ -->
+<div class="sheet-overlay" id="sheet_ncm">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">＋ Novo NCM</div><button class="sheet-close" onclick="fecharSheet('sheet_ncm')">×</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>NCM *</label><input type="text" id="ncm_novo_ncm" placeholder="0000.00.00" oninput="formatNCM(this)"/></div>
+      <div class="field"><label>Nome do Produto</label><input type="text" id="ncm_novo_desc" placeholder="Ex: Switch de rede 5 portas"/></div>
+      <div class="g2">
+        <div class="field"><label>II %</label><input type="number" id="ncm_novo_ii" value="0" inputmode="decimal" step="0.01"/></div>
+        <div class="field"><label>IPI %</label><input type="number" id="ncm_novo_ipi" value="0" inputmode="decimal" step="0.01"/></div>
+        <div class="field"><label>COFINS %</label><input type="number" id="ncm_novo_cofins" value="9.65" inputmode="decimal" step="0.01"/></div>
+        <div class="field"><label>ICMS %</label><input type="number" id="ncm_novo_icms" value="18" inputmode="decimal" step="0.01"/></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="salvarNCM()">Salvar NCM</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: EDITAR MARKETPLACE NO RESUMO ══ -->
+<div class="modal-overlay" id="modal_mkt_edit">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal_mkt_title">—</div>
+      <button class="modal-close" onclick="fecharModalMkt()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:12px;margin-bottom:4px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Produto</div>
+        <div style="font-size:14px;font-weight:700;color:var(--ink);" id="modal_mkt_prod_name">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">CMV: <span id="modal_mkt_cmv">—</span></div>
+      </div>
+      <div class="g2">
+        <div class="field"><label>Preço Venda R$</label><input type="number" id="em_preco" inputmode="decimal" step="0.01" oninput="atualizarMargemModal()"/></div>
+        <div class="field"><label>Frete R$</label><input type="number" id="em_frete" inputmode="decimal" step="0.01" oninput="atualizarMargemModal()"/></div>
+        <div class="field"><label>Tarifa %</label><input type="number" id="em_tarifa" inputmode="decimal" step="0.01" oninput="atualizarMargemModal()"/></div>
+        <div class="field"><label>Rebate %</label><input type="number" id="em_rebate" inputmode="decimal" step="0.01" oninput="atualizarMargemModal()"/></div>
+        <div class="field"><label>ADS %</label><input type="number" id="em_ads" inputmode="decimal" step="0.01" oninput="atualizarMargemModal()"/></div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Margem</div>
+          <div id="em_margem_display" style="background:var(--surface-2);border-radius:var(--radius-sm);padding:11px 13px;font-size:20px;font-weight:900;letter-spacing:-.5px;text-align:center;">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModalMkt()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoMkt()">Salvar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM ══ -->
+<div class="confirm-overlay" id="confirm_overlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirm_title">Confirmar</div>
+    <div class="confirm-msg" id="confirm_msg"></div>
+    <div class="confirm-btns">
+      <button class="btn btn-secondary btn-block" id="confirm_cancel">Cancelar</button>
+      <button class="btn btn-primary btn-block" id="confirm_ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══ UTILS ══
+function fmtN(v){if(isNaN(v)||v===null||v===undefined)return '0,00';const p=Math.abs(v).toFixed(2).split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');return (v<0?'-':'')+p.join(',');}
+function fmtR(v){return 'R$ '+fmtN(v);}
+function gn(id){return parseFloat(document.getElementById(id)?.value)||0;}
+function gs(id){return(document.getElementById(id)?.value||'').trim();}
+
+// ══ TOAST ══
+let _toastT;
+function showToast(icon,msg){
+  const el=document.getElementById('toast');
+  el.textContent=icon+' '+msg;el.classList.add('show');
+  clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ══ CONFIRM ══
+function showConfirm(title,msg,ok,cancel){
+  return new Promise(resolve=>{
+    document.getElementById('confirm_title').textContent=title;
+    document.getElementById('confirm_msg').textContent=msg;
+    document.getElementById('confirm_ok').textContent=ok||'Confirmar';
+    document.getElementById('confirm_cancel').textContent=cancel||'Cancelar';
+    document.getElementById('confirm_overlay').classList.add('open');
+    document.getElementById('confirm_ok').onclick=()=>{document.getElementById('confirm_overlay').classList.remove('open');resolve(true);};
+    document.getElementById('confirm_cancel').onclick=()=>{document.getElementById('confirm_overlay').classList.remove('open');resolve(false);};
+  });
+}
+
+// ══ SHEETS / MODALS ══
+function abrirSheet(id){document.getElementById(id).classList.add('open');}
+function fecharSheet(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.sheet-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
+document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
+
+// ══ NAV ══
+let _currentPage='lotes';
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.bnav-item,.sidebar-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  if(btn){btn.classList.add('active');}
+  else{
+    document.querySelectorAll(`.sidebar-item[onclick*="${name}"],.bnav-item[onclick*="${name}"]`).forEach(b=>b.classList.add('active'));
+  }
+  _currentPage=name;
+  if(name==='lotes'){renderLotes();document.getElementById('mobile-fab-lotes').style.display='flex';}
+  else{document.getElementById('mobile-fab-lotes').style.display='none';}
+  if(name==='ncm') renderNCMs();
+  if(name==='config') renderConfig();
+  window.scrollTo(0,0);
+}
+
+// ══ STORAGE ══
+function getLotes(){return JSON.parse(localStorage.getItem('qt_lotes')||'[]');}
+function saveLotes(d){localStorage.setItem('qt_lotes',JSON.stringify(d));}
+function getNCMs(){return JSON.parse(localStorage.getItem('qt_ncms')||'[]');}
+function saveNCMs(d){localStorage.setItem('qt_ncms',JSON.stringify(d));}
+function getConfig(){return JSON.parse(localStorage.getItem('qt_config')||'{"rmb_usd":7,"usd_brl":5.80,"cenario":"medio","historico":[]}');}
+function saveConfig(d){localStorage.setItem('qt_config',JSON.stringify(d));}
+
+// ══ CONSTANTES ══
+const FRETE_PERC={baixo:{bom:.02,medio:.03,ruim:.04},medio:{bom:.06,medio:.09,ruim:.12},alto:{bom:.12,medio:.18,ruim:.24}};
+const MKT_KEYS=['ml','sp','az','tkt','mg'];
+const MKT_LABEL={ml:'Mercado Livre',sp:'Shopee',az:'Amazon',tkt:'TikTok Shop',mg:'Magalu'};
+const MKT_ICON={ml:'🛒',sp:'🛍️',az:'📦',tkt:'🎵',mg:'💙'};
+const MKT_DEF={ml:{t:12,f:0},sp:{t:20,f:4},az:{t:13,f:5},tkt:{t:12,f:0},mg:{t:9.9,f:5}};
+
+// ══ CÁLCULOS ══
+function calcCMV(rmb,categ,cenario,cotRmb,cotUsd,ii_p,ipi_p,cofins_p,icms_p){
+  const vmle=(rmb/cotRmb)*cotUsd;
+  const fp=(FRETE_PERC[cenario]||FRETE_PERC.medio)[categ]||.03;
+  const vmld=vmle*(1+fp);
+  const afrmm=vmle*fp*.08;
+  const ii=vmld*(ii_p/100);
+  const ipi=(vmld+ii)*(ipi_p/100);
+  const pis=vmld*.021;
+  const cof=vmld*(cofins_p/100);
+  const cofExc=cofins_p>9.65?vmld*((cofins_p-9.65)/100):0;
+  const bcIcms=vmld+ii+ipi+pis+cof+afrmm;
+  const icms=icms_p>0?(bcIcms/(1-icms_p/100))*(icms_p/100):0;
+  const desp=vmld*.10;
+  const cmv=vmld+ii+afrmm+desp+cofExc;
+  return{vmle,vmld,fp,afrmm,ii,ipi,pis,cof,cofExc,icms,desp,cmv};
+}
+
+function calcMargem(cmv,ipi_p,preco,frete,tarifa_p,rebate_p,ads_p){
+  if(!preco) return null;
+  const tarifa_rs=preco*(tarifa_p/100)-preco*(rebate_p/100);
+  const ads_rs=preco*(ads_p/100);
+  const custo_aj=cmv-(tarifa_rs*.0925)-(ads_rs*.0925)-(frete*.0925);
+  const icms_s=preco*.185;
+  const ipi_s=preco*(ipi_p/100);
+  const piscof_s=(preco-icms_s)*.0925;
+  const margem_rs=preco-custo_aj-frete-tarifa_rs-ads_rs-icms_s-ipi_s-piscof_s;
+  const margem_p=(margem_rs/preco)*100;
+  return{tarifa_rs,ads_rs,custo_aj,icms_s,ipi_s,piscof_s,margem_rs,margem_p};
+}
+
+function mbClass(p){if(p===null||p===undefined)return 'badge-gray';if(p>20)return 'badge-green';if(p>12)return 'badge-yellow';return 'badge-red';}
+function mbColor(p){if(p===null||p===undefined)return 'var(--muted)';if(p>20)return 'var(--green)';if(p>12)return 'var(--yellow)';return 'var(--red)';}
+function mbBg(p){if(p===null||p===undefined)return 'var(--surface-3)';if(p>20)return 'var(--green-bg)';if(p>12)return 'var(--yellow-bg)';return 'var(--red-bg)';}
+
+// ══ CONFIG ══
+function salvarConfig(){
+  const cfg=getConfig();
+  const rmb=parseFloat(document.getElementById('cfg_rmb_usd')?.value)||0;
+  const usd=parseFloat(document.getElementById('cfg_usd_brl')?.value)||0;
+  const cenario=gs('cfg_cenario')||'medio';
+  if(rmb&&usd){
+    if(!cfg.historico) cfg.historico=[];
+    cfg.historico.unshift({rmb_usd:rmb,usd_brl:usd,cenario,data:new Date().toISOString()});
+    if(cfg.historico.length>10) cfg.historico=cfg.historico.slice(0,10);
+  }
+  cfg.rmb_usd=rmb||cfg.rmb_usd;
+  cfg.usd_brl=usd||cfg.usd_brl;
+  cfg.cenario=cenario;
+  saveConfig(cfg);
+  renderConfig();
+  showToast('✅','Configurações salvas!');
+}
+
+function renderConfig(){
+  const cfg=getConfig();
+  const rmbEl=document.getElementById('cfg_rmb_usd');
+  const usdEl=document.getElementById('cfg_usd_brl');
+  const cenEl=document.getElementById('cfg_cenario');
+  if(rmbEl) rmbEl.value=cfg.rmb_usd||'';
+  if(usdEl) usdEl.value=cfg.usd_brl||'';
+  if(cenEl) cenEl.value=cfg.cenario||'medio';
+  const hist=document.getElementById('cfg_historico');
+  if(!hist) return;
+  const h=cfg.historico||[];
+  if(!h.length){hist.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0;">Nenhuma cotação salva ainda.</div>';return;}
+  hist.innerHTML=h.map(r=>{
+    const d=new Date(r.data).toLocaleDateString('pt-BR');
+    const cenLabel={baixo:'🟢',medio:'🟡',alto:'🔴'}[r.cenario]||'';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-2);">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);">¥${r.rmb_usd} / R$${r.usd_brl}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${d} · ${cenLabel} ${r.cenario}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══ LOTES ══
+let _loteAtual=null;
+let _editProdIdx=null;
+let _ordemLotesAZ=false;
+
+function toggleOrdemLotes(){
+  _ordemLotesAZ=!_ordemLotesAZ;
+  document.getElementById('btn_ordem_lotes').textContent=_ordemLotesAZ?'Z→A':'A→Z';
+  renderLotes();
+}
+
+function abrirNovoLote(){
+  const cfg=getConfig();
+  document.getElementById('nl_nome').value='';
+  document.getElementById('nl_cenario').value=cfg.cenario||'medio';
+  document.getElementById('nl_rmb_usd').value=cfg.rmb_usd||7;
+  document.getElementById('nl_usd_brl').value=cfg.usd_brl||5.80;
+  abrirSheet('sheet_novo_lote');
+  setTimeout(()=>document.getElementById('nl_nome').focus(),300);
+}
+
+function criarLote(){
+  const nome=gs('nl_nome');
+  if(!nome){showToast('⚠️','Informe o nome do lote.');return;}
+  _loteAtual={
+    id:Date.now(),nome,
+    cenario:gs('nl_cenario')||'medio',
+    cotRmb:parseFloat(document.getElementById('nl_rmb_usd').value)||7,
+    cotUsd:parseFloat(document.getElementById('nl_usd_brl').value)||5.80,
+    status:'rascunho',
+    createdAt:new Date().toISOString(),
+    produtos:[]
+  };
+  fecharSheet('sheet_novo_lote');
+  abrirEditor();
+}
+
+function abrirEditor(){
+  if(!_loteAtual) return;
+  const cenLabel={baixo:'🟢 Baixo',medio:'🟡 Médio',alto:'🔴 Alto'}[_loteAtual.cenario]||_loteAtual.cenario;
+  const info=`${cenLabel} · ¥${_loteAtual.cotRmb} / R$${_loteAtual.cotUsd}`;
+  ['editor_nome_mob','editor_nome_desk'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=_loteAtual.nome;});
+  ['editor_info_mob','editor_info_desk'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=info+' ✏️';});
+  document.getElementById('editor_cenario_badge').textContent=cenLabel;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-editor').classList.add('active');
+  document.getElementById('mobile-fab-lotes').style.display='none';
+  renderProdutos();
+  window.scrollTo(0,0);
+}
+
+function voltarLista(){
+  _loteAtual=null;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-lotes').classList.add('active');
+  document.getElementById('mobile-fab-lotes').style.display='flex';
+  document.querySelectorAll('.sidebar-item[onclick*="lotes"],.bnav-item[onclick*="lotes"]').forEach(b=>b.classList.add('active'));
+  renderLotes();window.scrollTo(0,0);
+}
+
+function voltarEditor(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-editor').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function salvarLote(){
+  if(!_loteAtual) return;
+  if(!_loteAtual.produtos.length){showToast('⚠️','Adicione ao menos um produto.');return;}
+  const all=getLotes();
+  const idx=all.findIndex(l=>l.id===_loteAtual.id);
+  if(idx>=0) all[idx]=_loteAtual; else all.unshift(_loteAtual);
+  saveLotes(all);
+  showToast('✅',`"${_loteAtual.nome}" salvo!`);
+}
+
+function renderLotes(){
+  let all=getLotes();
+  const q=(document.getElementById('lotes_search')?.value||'').toLowerCase();
+  if(q) all=all.filter(l=>l.nome.toLowerCase().includes(q));
+  if(_ordemLotesAZ) all=[...all].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const body=document.getElementById('lotes_body');
+  if(!body) return;
+  if(!all.length){
+    body.innerHTML=`<div class="empty"><span class="empty-emoji">📋</span><div class="empty-title">${q?'Nenhum resultado':'Nenhum Quote ainda'}</div><div class="empty-sub">${q?'Tente outro termo de busca':'Crie seu primeiro lote de precificação'}</div></div>`;
+    return;
+  }
+  body.innerHTML=all.map((l,i)=>{
+    const data=new Date(l.createdAt).toLocaleDateString('pt-BR');
+    const cenLabel={baixo:'🟢',medio:'🟡',alto:'🔴'}[l.cenario]||'';
+    const nP=l.produtos.length;
+    const realIdx=getLotes().findIndex(x=>x.id===l.id);
+    return `<div class="list-item" onclick="abrirLoteSalvo(${realIdx})">
+      <div class="list-item-icon">📋</div>
+      <div class="list-item-body">
+        <div class="list-item-title">${l.nome}</div>
+        <div class="list-item-sub">${data} · ${nP} produto${nP!==1?'s':''} · ${cenLabel} ${l.cenario}</div>
+      </div>
+      <div class="list-item-right">
+        <span style="color:var(--muted-2);font-size:18px;">›</span>
+        <button onclick="event.stopPropagation();copiarLote(${realIdx})" style="background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,95,199,.2);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">⧉</button>
+        <button onclick="event.stopPropagation();excluirLote(${realIdx})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirLoteSalvo(i){
+  const all=getLotes();
+  if(!all[i]) return;
+  _loteAtual=JSON.parse(JSON.stringify(all[i]));
+  abrirEditor();
+}
+
+async function copiarLote(i){
+  const all=getLotes();
+  const orig=all[i];
+  if(!orig) return;
+  const cfg=getConfig();
+  const novo=JSON.parse(JSON.stringify(orig));
+  novo.id=Date.now();
+  novo.nome=orig.nome+' (cópia)';
+  novo.createdAt=new Date().toISOString();
+  novo.cotRmb=cfg.rmb_usd||orig.cotRmb;
+  novo.cotUsd=cfg.usd_brl||orig.cotUsd;
+  novo.cenario=cfg.cenario||orig.cenario;
+  // Recalcular CMV com novas cotações
+  novo.produtos.forEach((p,pi)=>{
+    const c=calcCMV(p.rmb,p.categ,novo.cenario,novo.cotRmb,novo.cotUsd,p.ii_p,p.ipi_p,p.cofins_p,p.icms_p);
+    Object.assign(novo.produtos[pi],c);
+    MKT_KEYS.forEach(mk=>{
+      const m=p.mkt[mk];
+      if(m){const mg=calcMargem(c.cmv,p.ipi_p,m.preco,m.frete,m.tarifa,m.rebate,m.ads);novo.produtos[pi].mkt[mk].margem_p=mg?.margem_p||0;novo.produtos[pi].mkt[mk].margem_rs=mg?.margem_rs||0;}
+    });
+  });
+  all.unshift(novo);
+  saveLotes(all);
+  renderLotes();
+  showToast('⧉','Lote copiado com cotações atuais!');
+}
+
+async function excluirLote(i){
+  const ok=await showConfirm('Excluir Quote','Deseja excluir permanentemente?','Excluir','Cancelar');
+  if(!ok) return;
+  const all=getLotes();all.splice(i,1);saveLotes(all);renderLotes();
+  showToast('🗑️','Quote excluído.');
+}
+
+// ══ EDITAR LOTE ══
+function abrirSheetEditarLote(){
+  if(!_loteAtual) return;
+  document.getElementById('el_nome').value=_loteAtual.nome;
+  document.getElementById('el_cenario').value=_loteAtual.cenario||'medio';
+  document.getElementById('el_rmb_usd').value=_loteAtual.cotRmb||7;
+  document.getElementById('el_usd_brl').value=_loteAtual.cotUsd||5.80;
+  abrirSheet('sheet_editar_lote');
+}
+
+function salvarEdicaoLote(){
+  const nome=document.getElementById('el_nome')?.value?.trim();
+  if(!nome){showToast('⚠️','Informe o nome.');return;}
+  const novoCen=gs('el_cenario')||'medio';
+  const novoRmb=parseFloat(document.getElementById('el_rmb_usd').value)||7;
+  const novoUsd=parseFloat(document.getElementById('el_usd_brl').value)||5.80;
+  const mudou=novoCen!==_loteAtual.cenario||novoRmb!==_loteAtual.cotRmb||novoUsd!==_loteAtual.cotUsd;
+  _loteAtual.nome=nome;_loteAtual.cenario=novoCen;_loteAtual.cotRmb=novoRmb;_loteAtual.cotUsd=novoUsd;
+  if(mudou&&_loteAtual.produtos.length){
+    _loteAtual.produtos.forEach((p,i)=>{
+      const c=calcCMV(p.rmb,p.categ,novoCen,novoRmb,novoUsd,p.ii_p,p.ipi_p,p.cofins_p,p.icms_p);
+      Object.assign(_loteAtual.produtos[i],c);
+      MKT_KEYS.forEach(mk=>{const m=p.mkt[mk];if(m){const mg=calcMargem(c.cmv,p.ipi_p,m.preco,m.frete,m.tarifa,m.rebate,m.ads);_loteAtual.produtos[i].mkt[mk].margem_p=mg?.margem_p||0;_loteAtual.produtos[i].mkt[mk].margem_rs=mg?.margem_rs||0;}});
+    });
+    showToast('🔄','Recalculado com novas cotações!');
+  } else showToast('✅','Lote atualizado!');
+  fecharSheet('sheet_editar_lote');
+  abrirEditor();
+}
+
+// ══ PRODUTOS ══
+function formatNCM(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>4) v=v.slice(0,4)+'.'+v.slice(4);
+  if(v.length>6) v=v.slice(0,7)+'.'+v.slice(7);
+  if(v.length>10) v=v.slice(0,10);
+  el.value=v;
+}
+
+let _ncmEncontrado=null;
+function buscarNCM(){
+  const ncm=(document.getElementById('mp_ncm')?.value||'').replace(/\D/g,'');
+  if(!ncm){showToast('⚠️','Informe o NCM antes de buscar.');return;}
+  const list=getNCMs();
+  const found=list.find(r=>String(r.ncm).replace(/\D/g,'')=== ncm);
+  _ncmEncontrado=found||null;
+  if(found){
+    document.getElementById('ncm_found_desc').textContent=`${found.desc||'Sem descrição'} · II:${found.ii}% IPI:${found.ipi}% COFINS:${found.cofins}% ICMS:${found.icms}%`;
+    document.getElementById('ncm_found_box').style.display='block';
+    document.getElementById('ncm_save_box').style.display='none';
+  } else {
+    document.getElementById('ncm_found_box').style.display='none';
+    document.getElementById('ncm_save_box').style.display='block';
+    showToast('ℹ️','NCM não cadastrado. Preencha as alíquotas manualmente.');
+  }
+}
+
+function ncmCopiar(){
+  if(!_ncmEncontrado) return;
+  document.getElementById('mp_ii').value=_ncmEncontrado.ii||0;
+  document.getElementById('mp_ipi').value=_ncmEncontrado.ipi||0;
+  document.getElementById('mp_cofins').value=_ncmEncontrado.cofins||9.65;
+  document.getElementById('mp_icms').value=_ncmEncontrado.icms||18;
+  document.getElementById('ncm_found_box').style.display='none';
+  MKT_KEYS.forEach(mk=>atualizarMargemInline(mk));
+  showToast('✅','Alíquotas copiadas!');
+}
+
+function ncmEditarManual(){
+  document.getElementById('ncm_found_box').style.display='none';
+  document.getElementById('mp_ii').focus();
+}
+
+function salvarNovoNCM(){
+  const ncm=(document.getElementById('mp_ncm')?.value||'').replace(/\D/g,'');
+  if(!ncm){showToast('⚠️','NCM inválido.');return;}
+  const desc=document.getElementById('ncm_save_desc')?.value?.trim()||'';
+  const ii=parseFloat(document.getElementById('mp_ii')?.value)||0;
+  const ipi=parseFloat(document.getElementById('mp_ipi')?.value)||0;
+  const cofins=parseFloat(document.getElementById('mp_cofins')?.value)||9.65;
+  const icms=parseFloat(document.getElementById('mp_icms')?.value)||18;
+  const list=getNCMs();
+  const existing=list.findIndex(r=>String(r.ncm).replace(/\D/g,'')=== ncm);
+  const entry={ncm:fmtNCMNum(ncm),desc,ii,ipi,cofins,icms};
+  if(existing>=0) list[existing]=entry; else list.push(entry);
+  saveNCMs(list);
+  document.getElementById('ncm_save_box').style.display='none';
+  showToast('✅','NCM salvo no banco!');
+}
+
+function fmtNCMNum(v){
+  v=String(v).replace(/\D/g,'').padEnd(8,'0').slice(0,8);
+  return v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8);
+}
+
+function abrirSheetProduto(editIdx){
+  _editProdIdx=editIdx!==undefined?editIdx:null;
+  const isEdit=_editProdIdx!==null;
+  document.getElementById('sheet_prod_title').textContent=isEdit?'✏️ Editar Produto':'＋ Produto';
+  if(isEdit){
+    const p=_loteAtual.produtos[_editProdIdx];
+    document.getElementById('mp_nome').value=p.nome||'';
+    document.getElementById('mp_sku').value=p.sku||'';
+    document.getElementById('mp_ncm').value=p.ncm||'';
+    document.getElementById('mp_cat').value=p.categ||'medio';
+    document.getElementById('mp_ii').value=p.ii_p||0;
+    document.getElementById('mp_ipi').value=p.ipi_p||0;
+    document.getElementById('mp_cofins').value=p.cofins_p||9.65;
+    document.getElementById('mp_icms').value=p.icms_p||18;
+    document.getElementById('mp_rmb').value=p.rmb||'';
+    MKT_KEYS.forEach(mk=>{
+      const m=p.mkt[mk]||{};
+      document.getElementById(`${mk}_preco`).value=m.preco||'';
+      document.getElementById(`${mk}_frete`).value=m.frete!==undefined?m.frete:MKT_DEF[mk]?.f||0;
+      document.getElementById(`${mk}_tarifa`).value=m.tarifa!==undefined?m.tarifa:MKT_DEF[mk]?.t||0;
+      document.getElementById(`${mk}_rebate`).value=m.rebate||0;
+      document.getElementById(`${mk}_ads`).value=m.ads||0;
+    });
+    MKT_KEYS.forEach(mk=>atualizarMargemInline(mk));
+  } else {
+    ['mp_nome','mp_sku','mp_ncm','mp_rmb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('mp_cat').value='medio';
+    document.getElementById('mp_ii').value='0';
+    document.getElementById('mp_ipi').value='0';
+    document.getElementById('mp_cofins').value='9.65';
+    document.getElementById('mp_icms').value='18';
+    MKT_KEYS.forEach(mk=>{
+      document.getElementById(`${mk}_preco`).value='';
+      document.getElementById(`${mk}_frete`).value=MKT_DEF[mk]?.f||0;
+      document.getElementById(`${mk}_tarifa`).value=MKT_DEF[mk]?.t||0;
+      document.getElementById(`${mk}_rebate`).value='0';
+      document.getElementById(`${mk}_ads`).value='0';
+      const b=document.getElementById(`marg_${mk}`);if(b){b.className='badge badge-gray';b.textContent='—';}
+    });
+  }
+  document.getElementById('ncm_found_box').style.display='none';
+  document.getElementById('ncm_save_box').style.display='none';
+  abrirSheet('sheet_produto');
+  setTimeout(()=>document.getElementById('mp_nome').focus(),300);
+}
+
+function atualizarMargemInline(mk){
+  const rmb=gn('mp_rmb');
+  const categ=gs('mp_cat')||'medio';
+  const ii_p=gn('mp_ii');const ipi_p=gn('mp_ipi');
+  const cofins_p=gn('mp_cofins')||9.65;const icms_p=gn('mp_icms')||18;
+  const preco=gn(`${mk}_preco`);const frete=gn(`${mk}_frete`);
+  const tar_p=gn(`${mk}_tarifa`);const reb_p=gn(`${mk}_rebate`);const ads_p=gn(`${mk}_ads`);
+  const badge=document.getElementById(`marg_${mk}`);
+  if(!badge) return;
+  if(!rmb||!preco){badge.className='badge badge-gray';badge.textContent='—';return;}
+  const c=calcCMV(rmb,categ,_loteAtual?.cenario||'medio',_loteAtual?.cotRmb||7,_loteAtual?.cotUsd||5.80,ii_p,ipi_p,cofins_p,icms_p);
+  const m=calcMargem(c.cmv,ipi_p,preco,frete,tar_p,reb_p,ads_p);
+  if(!m){badge.className='badge badge-gray';badge.textContent='—';return;}
+  badge.className='badge '+mbClass(m.margem_p);
+  badge.textContent=fmtN(m.margem_p)+'%';
+}
+
+function salvarProduto(){
+  const nome=document.getElementById('mp_nome')?.value?.trim();
+  const rmb=parseFloat(document.getElementById('mp_rmb')?.value)||0;
+  if(!nome||!rmb){showToast('⚠️','Nome e valor RMB são obrigatórios.');return;}
+  const categ=gs('mp_cat')||'medio';
+  const ii_p=parseFloat(document.getElementById('mp_ii')?.value)||0;
+  const ipi_p=parseFloat(document.getElementById('mp_ipi')?.value)||0;
+  const cofins_p=parseFloat(document.getElementById('mp_cofins')?.value)||9.65;
+  const icms_p=parseFloat(document.getElementById('mp_icms')?.value)||18;
+  const c=calcCMV(rmb,categ,_loteAtual.cenario,_loteAtual.cotRmb,_loteAtual.cotUsd,ii_p,ipi_p,cofins_p,icms_p);
+  const mkt={};
+  MKT_KEYS.forEach(mk=>{
+    const preco=parseFloat(document.getElementById(`${mk}_preco`)?.value)||0;
+    const frete=parseFloat(document.getElementById(`${mk}_frete`)?.value)||0;
+    const tarifa=parseFloat(document.getElementById(`${mk}_tarifa`)?.value)||0;
+    const rebate=parseFloat(document.getElementById(`${mk}_rebate`)?.value)||0;
+    const ads=parseFloat(document.getElementById(`${mk}_ads`)?.value)||0;
+    const m=calcMargem(c.cmv,ipi_p,preco,frete,tarifa,rebate,ads);
+    mkt[mk]={preco,frete,tarifa,rebate,ads,margem_rs:m?.margem_rs||0,margem_p:m?.margem_p||0};
+  });
+  const produto={id:Date.now(),nome,sku:document.getElementById('mp_sku')?.value||'',ncm:document.getElementById('mp_ncm')?.value||'',categ,rmb,ii_p,ipi_p,cofins_p,icms_p,...c,mkt};
+  if(_editProdIdx!==null){_loteAtual.produtos[_editProdIdx]=produto;showToast('✅','Produto atualizado!');}
+  else{_loteAtual.produtos.push(produto);showToast('✅',`"${nome}" adicionado!`);}
+  fecharSheet('sheet_produto');
+  renderProdutos();
+}
+
+function renderProdutos(){
+  document.getElementById('editor_total').textContent=_loteAtual.produtos.length;
+  const container=document.getElementById('editor_produtos_list');
+  if(!container) return;
+  if(!_loteAtual.produtos.length){
+    container.innerHTML=`<div class="empty"><span class="empty-emoji">📦</span><div class="empty-title">Nenhum produto</div><div class="empty-sub">Clique no ＋ para adicionar o primeiro produto do lote</div></div>`;
+    return;
+  }
+  const catIcon={bom:'🟢',medio:'🟡',ruim:'🔴'};
+  container.innerHTML=_loteAtual.produtos.map((p,i)=>{
+    const badges=MKT_KEYS.map(mk=>{
+      const m=p.mkt[mk];
+      if(!m?.preco) return '';
+      return `<span class="badge ${mbClass(m.margem_p)}" style="font-size:10px;">${MKT_ICON[mk]} ${fmtN(m.margem_p)}%</span>`;
+    }).filter(Boolean).join('');
+    return `<div class="prod-card">
+      <div class="prod-card-header">
+        <div>
+          <div class="prod-card-name">${catIcon[p.categ]||''} ${p.nome}</div>
+          <div class="prod-card-sku">${p.sku?'SKU: '+p.sku:''}${p.ncm?' · NCM: '+p.ncm:''}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="abrirSheetProduto(${i})" class="btn btn-secondary btn-xs">✏️</button>
+          <button onclick="removerProduto(${i})" class="btn btn-danger btn-xs">✕</button>
+        </div>
+      </div>
+      <div class="prod-card-body">
+        <div class="prod-cmv-row">
+          <div class="stat-card" style="padding:10px;"><div class="stat-label">¥ RMB</div><div class="stat-value" style="font-size:15px;">${fmtN(p.rmb)}</div></div>
+          <div class="stat-card" style="padding:10px;"><div class="stat-label">VMLE</div><div class="stat-value" style="font-size:15px;">${fmtR(p.vmle)}</div></div>
+          <div class="stat-card dark" style="padding:10px;"><div class="stat-label">CMV</div><div class="stat-value" style="font-size:15px;">${fmtR(p.cmv)}</div></div>
+        </div>
+        ${badges?`<div style="display:flex;flex-wrap:wrap;gap:5px;">${badges}</div>`:'<div style="font-size:12px;color:var(--muted-2);">Nenhum preço cadastrado</div>'}
+      </div>
+    </div>`;
+  }).join('')+`<button class="btn btn-success btn-block" onclick="verResumo()" style="margin-top:4px;">📊 Ver Resumo do Lote</button>`;
+}
+
+async function removerProduto(i){
+  const ok=await showConfirm('Remover produto','Remover este produto do lote?','Remover','Cancelar');
+  if(!ok) return;
+  _loteAtual.produtos.splice(i,1);renderProdutos();showToast('🗑️','Produto removido.');
+}
+
+// ══ RESUMO ══
+function verResumo(){
+  document.getElementById('resumo_sub').textContent=_loteAtual.nome;
+  const content=document.getElementById('resumo_content');
+  if(!content) return;
+
+  // Produtos completos = todos os 5 mkt com preco > 0
+  const completos=_loteAtual.produtos.filter(p=>MKT_KEYS.every(mk=>p.mkt[mk]?.preco>0));
+  const totalRmb=_loteAtual.produtos.reduce((s,p)=>s+p.rmb,0);
+  const cmvMedio=_loteAtual.produtos.length?_loteAtual.produtos.reduce((s,p)=>s+p.cmv,0)/_loteAtual.produtos.length:0;
+  let margemMedia=null;
+  if(completos.length){
+    const todasMargens=completos.flatMap(p=>MKT_KEYS.map(mk=>p.mkt[mk]?.margem_p||0));
+    margemMedia=todasMargens.reduce((s,v)=>s+v,0)/todasMargens.length;
+  }
+
+  // Stats por marketplace (media de produtos que tem preco)
+  const mktStats={};
+  MKT_KEYS.forEach(mk=>{
+    const prods=_loteAtual.produtos.filter(p=>p.mkt[mk]?.preco>0);
+    if(!prods.length){mktStats[mk]=null;return;}
+    const avg=prods.reduce((s,p)=>s+(p.mkt[mk]?.margem_p||0),0)/prods.length;
+    mktStats[mk]={avg,n:prods.length};
+  });
+
+  let html=`
+  <div class="resumo-header">
+    <div class="resumo-header-title">${_loteAtual.nome}</div>
+    <div class="resumo-stats">
+      <div class="resumo-stat"><div class="resumo-stat-label">Total RMB</div><div class="resumo-stat-value">¥ ${fmtN(totalRmb)}</div></div>
+      <div class="resumo-stat"><div class="resumo-stat-label">CMV Médio</div><div class="resumo-stat-value">${fmtR(cmvMedio)}</div></div>
+      <div class="resumo-stat"><div class="resumo-stat-label">Margem Média</div><div class="resumo-stat-value" style="color:${margemMedia!==null?mbColor(margemMedia):'rgba(255,255,255,.4)'};">${margemMedia!==null?fmtN(margemMedia)+'%':'—'}</div></div>
+    </div>
+  </div>`;
+
+  // Margens por marketplace
+  html+=`<div class="card" style="margin-bottom:12px;"><div class="card-header"><div class="card-header-title">Margem média por Marketplace</div></div>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:6px;">`;
+  MKT_KEYS.forEach(mk=>{
+    const s=mktStats[mk];
+    if(!s){html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--surface-2);"><span style="font-size:13px;font-weight:600;color:var(--muted);">${MKT_ICON[mk]} ${MKT_LABEL[mk]}</span><span class="badge badge-gray">Sem dados</span></div>`;return;}
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:${mbBg(s.avg)};border:1px solid var(--border-2);">
+      <span style="font-size:13px;font-weight:700;color:var(--ink-3);">${MKT_ICON[mk]} ${MKT_LABEL[mk]}</span>
+      <span class="badge ${mbClass(s.avg)}">${fmtN(s.avg)}% <span style="font-weight:400;opacity:.7;">(${s.n} prod.)</span></span>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Cards por produto
+  _loteAtual.produtos.forEach((p,pi)=>{
+    const mktCards=MKT_KEYS.map(mk=>{
+      const m=p.mkt[mk];
+      const hasData=m?.preco>0;
+      return `<div class="resumo-mkt-card" onclick="${hasData?`abrirModalMkt(${pi},'${mk}')`:'void(0)'}">
+        <div>
+          <div class="resumo-mkt-name">${MKT_ICON[mk]} ${MKT_LABEL[mk]}</div>
+          <div class="resumo-mkt-preco">${hasData?'Venda: '+fmtR(m.preco):'Sem preço cadastrado'}</div>
+        </div>
+        <div class="resumo-mkt-right">
+          <span class="badge ${hasData?mbClass(m.margem_p):'badge-gray'}">${hasData?fmtN(m.margem_p)+'%':'—'}</span>
+          ${hasData?'<span style="font-size:11px;color:var(--muted);">✏️ editar</span>':''}
+        </div>
+      </div>`;
+    }).join('');
+    html+=`<div class="resumo-prod">
+      <div class="resumo-prod-header">
+        <div class="resumo-prod-name">${p.nome}</div>
+        <div class="resumo-prod-info">CMV: ${fmtR(p.cmv)} · ¥ ${fmtN(p.rmb)}</div>
+      </div>
+      <div class="resumo-mkt-grid">${mktCards}</div>
+    </div>`;
+  });
+
+  content.innerHTML=html;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-resumo').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ══ MODAL EDITAR MKT ══
+let _modalMktProdIdx=null;
+let _modalMktKey=null;
+
+function abrirModalMkt(prodIdx,mk){
+  const p=_loteAtual.produtos[prodIdx];
+  if(!p) return;
+  _modalMktProdIdx=prodIdx;
+  _modalMktKey=mk;
+  const m=p.mkt[mk]||{};
+  document.getElementById('modal_mkt_title').textContent=`${MKT_ICON[mk]} ${MKT_LABEL[mk]}`;
+  document.getElementById('modal_mkt_prod_name').textContent=p.nome;
+  document.getElementById('modal_mkt_cmv').textContent=fmtR(p.cmv);
+  document.getElementById('em_preco').value=m.preco||'';
+  document.getElementById('em_frete').value=m.frete!==undefined?m.frete:MKT_DEF[mk]?.f||0;
+  document.getElementById('em_tarifa').value=m.tarifa!==undefined?m.tarifa:MKT_DEF[mk]?.t||0;
+  document.getElementById('em_rebate').value=m.rebate||0;
+  document.getElementById('em_ads').value=m.ads||0;
+  atualizarMargemModal();
+  document.getElementById('modal_mkt_edit').classList.add('open');
+}
+
+function fecharModalMkt(){document.getElementById('modal_mkt_edit').classList.remove('open');}
+
+function atualizarMargemModal(){
+  const p=_loteAtual?.produtos[_modalMktProdIdx];
+  if(!p) return;
+  const preco=gn('em_preco');const frete=gn('em_frete');
+  const tar=gn('em_tarifa');const reb=gn('em_rebate');const ads=gn('em_ads');
+  const el=document.getElementById('em_margem_display');
+  if(!preco||!el){if(el)el.textContent='—';return;}
+  const m=calcMargem(p.cmv,p.ipi_p,preco,frete,tar,reb,ads);
+  if(!m){el.textContent='—';return;}
+  el.style.background=mbBg(m.margem_p);
+  el.style.color=mbColor(m.margem_p);
+  el.textContent=fmtN(m.margem_p)+'%';
+}
+
+function salvarEdicaoMkt(){
+  const p=_loteAtual?.produtos[_modalMktProdIdx];
+  if(!p||!_modalMktKey) return;
+  const preco=gn('em_preco');const frete=gn('em_frete');
+  const tarifa=gn('em_tarifa');const rebate=gn('em_rebate');const ads=gn('em_ads');
+  const m=calcMargem(p.cmv,p.ipi_p,preco,frete,tarifa,rebate,ads);
+  p.mkt[_modalMktKey]={preco,frete,tarifa,rebate,ads,margem_rs:m?.margem_rs||0,margem_p:m?.margem_p||0};
+  fecharModalMkt();
+  verResumo();
+  showToast('✅','Precificação atualizada!');
+}
+
+// ══ NCMs ══
+function renderNCMs(){
+  let list=getNCMs();
+  const q=(document.getElementById('ncm_search')?.value||'').toLowerCase();
+  if(q) list=list.filter(r=>(r.desc||'').toLowerCase().includes(q)||(r.ncm||'').includes(q));
+  list=[...list].sort((a,b)=>(a.desc||'').localeCompare(b.desc||'','pt-BR'));
+  const body=document.getElementById('ncm_body');
+  if(!body) return;
+  if(!list.length){
+    body.innerHTML=`<div class="empty"><span class="empty-emoji">🗂️</span><div class="empty-title">${q?'Nenhum resultado':'Nenhum NCM cadastrado'}</div><div class="empty-sub">${q?'Tente outro nome ou número':'Clique em ＋ Novo NCM para adicionar'}</div></div>`;
+    return;
+  }
+  const allNCMs=getNCMs();
+  body.innerHTML=list.map(r=>{
+    const realIdx=allNCMs.findIndex(x=>x.ncm===r.ncm&&x.desc===r.desc);
+    return `<div class="ncm-card">
+      <div class="ncm-card-icon">🗂️</div>
+      <div class="ncm-card-body">
+        <div class="ncm-card-name">${r.desc||'Sem descrição'}</div>
+        <div class="ncm-card-number">NCM: ${r.ncm||'—'}</div>
+        <div class="ncm-card-badges">
+          <span class="badge badge-gray">II: ${r.ii||0}%</span>
+          <span class="badge badge-gray">IPI: ${r.ipi||0}%</span>
+          <span class="badge badge-gray">COFINS: ${r.cofins||9.65}%</span>
+          <span class="badge badge-gray">ICMS: ${r.icms||18}%</span>
+        </div>
+      </div>
+      <div class="ncm-card-actions">
+        <button onclick="excluirNCM(${realIdx})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirSheetNcm(){
+  ['ncm_novo_ncm','ncm_novo_desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ncm_novo_ii').value='0';
+  document.getElementById('ncm_novo_ipi').value='0';
+  document.getElementById('ncm_novo_cofins').value='9.65';
+  document.getElementById('ncm_novo_icms').value='18';
+  abrirSheet('sheet_ncm');
+  setTimeout(()=>document.getElementById('ncm_novo_desc').focus(),300);
+}
+
+function salvarNCM(){
+  const ncm=(document.getElementById('ncm_novo_ncm')?.value||'').replace(/\D/g,'');
+  if(!ncm){showToast('⚠️','Informe o NCM.');return;}
+  const list=getNCMs();
+  const existing=list.findIndex(r=>String(r.ncm).replace(/\D/g,'')=== ncm);
+  const entry={
+    ncm:fmtNCMNum(ncm),
+    desc:gs('ncm_novo_desc'),
+    ii:parseFloat(document.getElementById('ncm_novo_ii')?.value)||0,
+    ipi:parseFloat(document.getElementById('ncm_novo_ipi')?.value)||0,
+    cofins:parseFloat(document.getElementById('ncm_novo_cofins')?.value)||9.65,
+    icms:parseFloat(document.getElementById('ncm_novo_icms')?.value)||18,
+  };
+  if(existing>=0) list[existing]=entry; else list.push(entry);
+  saveNCMs(list);
+  fecharSheet('sheet_ncm');
+  renderNCMs();
+  showToast('✅','NCM salvo!');
+}
+
+async function excluirNCM(i){
+  const ok=await showConfirm('Excluir NCM','Remover este NCM do banco?','Excluir','Cancelar');
+  if(!ok) return;
+  const list=getNCMs();list.splice(i,1);saveNCMs(list);renderNCMs();showToast('🗑️','NCM removido.');
+}
+
+// ── INIT ──
+renderLotes();
+renderConfig();
+</script>
+</body>
+</html>
