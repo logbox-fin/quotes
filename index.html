@@ -383,7 +383,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;b
 
 <!-- ══ SIDEBAR (desktop) ══ -->
 <aside class="sidebar">
-  <div class="sidebar-logo">Quot<em>es</em><span>by LogBox</span></div>
+  <div class="sidebar-logo">Quot<em>es</em><span>by LogBox</span><div id="sync_status" style="font-size:9px;color:rgba(255,255,255,.3);margin-top:4px;font-weight:500;"></div></div>
   <nav class="sidebar-nav">
     <button class="sidebar-item" onclick="showPage('config',this)"><span class="s-icon">⚙️</span> Configurações</button>
     <button class="sidebar-item" onclick="showPage('ncm',this)"><span class="s-icon">🗂️</span> Banco de NCMs</button>
@@ -765,6 +765,92 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;b
 <div id="toast"></div>
 
 <script>
+// ══ SUPABASE ══
+const SB_URL = 'https://kysalljpibclhoplsbip.supabase.co';
+const SB_KEY = 'sb_publishable_RUTtf0BLSmhH_KDUTsqN_g_uZs2wpGI';
+
+async function sbFetch(path, opts){
+  const res = await fetch(SB_URL+'/rest/v1/'+path, {
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':opts?.prefer||'return=representation'},
+    ...opts
+  });
+  if(!res.ok){console.error('SB error:',await res.text());return null;}
+  const t=await res.text(); return t?JSON.parse(t):null;
+}
+async function sbGet(table,q){return sbFetch(table+(q?'?'+q:''));}
+async function sbUpsert(table,data){return sbFetch(table,{method:'POST',prefer:'resolution=merge-duplicates,return=representation',body:JSON.stringify(data)});}
+async function sbDelete(table,q){return sbFetch(table+'?'+q,{method:'DELETE',prefer:'return=minimal'});}
+async function sbPatch(table,q,data){return sbFetch(table+'?'+q,{method:'PATCH',prefer:'return=minimal',body:JSON.stringify(data)});}
+
+let _syncing=false;
+function setSyncing(v){
+  _syncing=v;
+  const el=document.getElementById('sync_status');
+  if(el) el.textContent=v?'🔄 sincronizando...':'✅ sincronizado';
+}
+
+async function syncLoteUp(lote){
+  setSyncing(true);
+  try{
+    await sbUpsert('quotes_lotes',{id:lote.id,nome:lote.nome,cenario:lote.cenario,cot_rmb:lote.cotRmb,cot_usd:lote.cotUsd,status:lote.status||'rascunho',updated_at:new Date().toISOString()});
+    await sbDelete('quotes_produtos','lote_id=eq.'+lote.id);
+    if(lote.produtos.length){
+      await sbUpsert('quotes_produtos',lote.produtos.map(p=>({id:p.id,lote_id:lote.id,nome:p.nome,sku:p.sku||'',ncm:p.ncm||'',categ:p.categ,rmb:p.rmb,ii_p:p.ii_p,ipi_p:p.ipi_p,cofins_p:p.cofins_p,icms_p:p.icms_p,vmle:p.vmle,vmld:p.vmld,fp:p.fp,afrmm:p.afrmm,cmv:p.cmv,mkt:p.mkt})));
+    }
+  }catch(e){console.error('syncLoteUp:',e);}
+  setSyncing(false);
+}
+
+async function syncLoteDown(){
+  try{
+    const lotes=await sbGet('quotes_lotes','order=created_at.desc');
+    if(!lotes) return;
+    const prods=await sbGet('quotes_produtos','order=created_at.asc');
+    saveLotes(lotes.map(l=>({id:l.id,nome:l.nome,cenario:l.cenario,cotRmb:parseFloat(l.cot_rmb),cotUsd:parseFloat(l.cot_usd),status:l.status,createdAt:l.created_at,produtos:(prods||[]).filter(p=>p.lote_id===l.id).map(p=>({id:p.id,nome:p.nome,sku:p.sku,ncm:p.ncm,categ:p.categ,rmb:parseFloat(p.rmb),ii_p:parseFloat(p.ii_p),ipi_p:parseFloat(p.ipi_p),cofins_p:parseFloat(p.cofins_p),icms_p:parseFloat(p.icms_p),vmle:parseFloat(p.vmle),vmld:parseFloat(p.vmld),fp:parseFloat(p.fp),afrmm:parseFloat(p.afrmm),cmv:parseFloat(p.cmv),mkt:p.mkt}))})));
+  }catch(e){console.error('syncLoteDown:',e);}
+}
+
+async function syncNCMsDown(){
+  try{
+    const ncms=await sbGet('quotes_ncms','order=descricao.asc');
+    if(!ncms) return;
+    saveNCMs(ncms.map(r=>({ncm:r.ncm,desc:r.descricao||'',ii:parseFloat(r.ii),ipi:parseFloat(r.ipi),cofins:parseFloat(r.cofins),icms:parseFloat(r.icms)})));
+  }catch(e){console.error('syncNCMsDown:',e);}
+}
+
+async function syncNCMUp(entry){
+  try{await sbUpsert('quotes_ncms',{ncm:entry.ncm,descricao:entry.desc||'',ii:entry.ii,ipi:entry.ipi,cofins:entry.cofins,icms:entry.icms});}
+  catch(e){console.error('syncNCMUp:',e);}
+}
+
+async function syncNCMDelete(ncm){
+  try{await sbDelete('quotes_ncms','ncm=eq.'+encodeURIComponent(ncm));}
+  catch(e){console.error('syncNCMDelete:',e);}
+}
+
+async function syncConfigUp(cfg){
+  try{
+    const rows=await sbGet('quotes_config','limit=1');
+    if(rows&&rows.length){await sbPatch('quotes_config','id=eq.'+rows[0].id,{rmb_usd:cfg.rmb_usd,usd_brl:cfg.usd_brl,cenario:cfg.cenario,historico:cfg.historico,updated_at:new Date().toISOString()});}
+    else{await sbUpsert('quotes_config',{rmb_usd:cfg.rmb_usd,usd_brl:cfg.usd_brl,cenario:cfg.cenario,historico:cfg.historico});}
+  }catch(e){console.error('syncConfigUp:',e);}
+}
+
+async function syncConfigDown(){
+  try{
+    const rows=await sbGet('quotes_config','limit=1');
+    if(rows&&rows.length){const r=rows[0];saveConfig({rmb_usd:parseFloat(r.rmb_usd),usd_brl:parseFloat(r.usd_brl),cenario:r.cenario,historico:r.historico||[]});}
+  }catch(e){console.error('syncConfigDown:',e);}
+}
+
+async function syncInicial(){
+  setSyncing(true);
+  await Promise.all([syncLoteDown(),syncNCMsDown(),syncConfigDown()]);
+  renderLotes();renderNCMs();renderConfig();
+  setSyncing(false);
+  showToast('✅','Sincronizado!');
+}
+
 // ══ UTILS ══
 function fmtN(v){if(isNaN(v)||v===null||v===undefined)return '0,00';const p=Math.abs(v).toFixed(2).split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');return (v<0?'-':'')+p.join(',');}
 function fmtR(v){return 'R$ '+fmtN(v);}
@@ -881,6 +967,7 @@ function salvarConfig(){
   cfg.usd_brl=usd||cfg.usd_brl;
   cfg.cenario=cenario;
   saveConfig(cfg);
+  syncConfigUp(cfg);
   renderConfig();
   showToast('✅','Configurações salvas!');
 }
@@ -982,6 +1069,7 @@ function salvarLote(){
   const idx=all.findIndex(l=>l.id===_loteAtual.id);
   if(idx>=0) all[idx]=_loteAtual; else all.unshift(_loteAtual);
   saveLotes(all);
+  syncLoteUp(_loteAtual);
   showToast('✅',`"${_loteAtual.nome}" salvo!`);
 }
 
@@ -1144,6 +1232,7 @@ function salvarNovoNCM(){
   if(existing>=0) list[existing]=entry; else list.push(entry);
   saveNCMs(list);
   document.getElementById('ncm_save_box').style.display='none';
+  syncNCMUp(entry);
   showToast('✅','NCM salvo no banco!');
 }
 
@@ -1473,7 +1562,7 @@ function salvarNCM(){
     icms:parseFloat(document.getElementById('ncm_novo_icms')?.value)||18,
   };
   if(existing>=0) list[existing]=entry; else list.push(entry);
-  saveNCMs(list);
+  saveNCMs(list); syncNCMUp(entry);
   fecharSheet('sheet_ncm');
   renderNCMs();
   showToast('✅','NCM salvo!');
@@ -1482,12 +1571,13 @@ function salvarNCM(){
 async function excluirNCM(i){
   const ok=await showConfirm('Excluir NCM','Remover este NCM do banco?','Excluir','Cancelar');
   if(!ok) return;
-  const list=getNCMs();list.splice(i,1);saveNCMs(list);renderNCMs();showToast('🗑️','NCM removido.');
+  const list=getNCMs();const nv=list[i]?.ncm;list.splice(i,1);saveNCMs(list);if(nv)syncNCMDelete(nv);renderNCMs();showToast('🗑️','NCM removido.');
 }
 
 // ── INIT ──
 renderLotes();
 renderConfig();
+syncInicial();
 </script>
 </body>
 </html>
