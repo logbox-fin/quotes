@@ -436,8 +436,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
       <div class="mob-title" id="editor_nome_mob">—</div>
       <div class="mob-sub" id="editor_info_mob" onclick="abrirSheetEditarLote()" style="cursor:pointer;">— <span style="color:var(--accent);font-weight:700;">✏️</span></div>
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()" style="margin-right:6px;">✏️</button>
-    <button class="btn btn-primary btn-sm" onclick="salvarLote()">💾</button>
+    <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️</button>
   </div>
   <div class="desktop-topbar">
     <div>
@@ -447,7 +446,6 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
     <div style="display:flex;gap:8px;">
       <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️ Editar Lote</button>
       <button class="btn btn-secondary btn-sm" onclick="verResumo()">📊 Resumo</button>
-      <button class="btn btn-primary btn-sm" onclick="salvarLote()">💾 Salvar</button>
       <button class="btn btn-dark btn-sm" onclick="abrirSheetProduto()">＋ Produto</button>
     </div>
   </div>
@@ -1039,6 +1037,7 @@ function criarLote(){
   };
   fecharSheet('sheet_novo_lote');
   abrirEditor();
+  salvarLote();
 }
 
 function abrirEditor(){
@@ -1072,13 +1071,22 @@ function voltarEditor(){
 
 function salvarLote(){
   if(!_loteAtual) return;
-  if(!_loteAtual.produtos.length){showToast('⚠️','Adicione ao menos um produto.');return;}
   const all=getLotes();
   const idx=all.findIndex(l=>l.id===_loteAtual.id);
   if(idx>=0) all[idx]=_loteAtual; else all.unshift(_loteAtual);
   saveLotes(all);
   syncLoteUp(_loteAtual);
-  showToast('✅',`Lote "${_loteAtual.nome}" salvo com sucesso!`);
+}
+
+// Auto-save com debounce (espera 800ms após última alteração)
+let _autoSaveTimer=null;
+function autoSave(){
+  if(!_loteAtual) return;
+  clearTimeout(_autoSaveTimer);
+  setSyncing(true);
+  _autoSaveTimer=setTimeout(()=>{
+    salvarLote();
+  },800);
 }
 
 function renderLotes(){
@@ -1181,6 +1189,7 @@ function salvarEdicaoLote(){
   } else showToast('✅','Lote atualizado!');
   fecharSheet('sheet_editar_lote');
   abrirEditor();
+  autoSave();
 }
 
 // ══ PRODUTOS ══
@@ -1337,6 +1346,7 @@ function salvarProduto(){
   else{_loteAtual.produtos.push(produto);showToast('✅',`"${nome}" adicionado!`);}
   fecharSheet('sheet_produto');
   renderProdutos();
+  autoSave();
 }
 
 function renderProdutos(){
@@ -1380,7 +1390,7 @@ function renderProdutos(){
 async function removerProduto(i){
   const ok=await showConfirm('Remover produto','Remover este produto do lote?','Remover','Cancelar');
   if(!ok) return;
-  _loteAtual.produtos.splice(i,1);renderProdutos();showToast('🗑️','Produto removido.');
+  _loteAtual.produtos.splice(i,1);renderProdutos();autoSave();showToast('🗑️','Produto removido.');
 }
 
 
@@ -1530,6 +1540,7 @@ function salvarEdicaoMkt(){
   p.mkt[_modalMktKey]={preco,frete,tarifa,rebate,ads,margem_rs:m?.margem_rs||0,margem_p:m?.margem_p||0};
   fecharModalMkt();
   verResumo();
+  autoSave();
   showToast('✅','Precificação atualizada!');
 }
 
