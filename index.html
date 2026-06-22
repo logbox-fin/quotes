@@ -397,6 +397,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
     <button class="sidebar-item" onclick="showPage('config',this)"><span class="s-icon">⚙️</span> Configurações</button>
     <button class="sidebar-item" onclick="showPage('ncm',this)"><span class="s-icon">🗂️</span> Banco de NCMs</button>
     <button class="sidebar-item active" onclick="showPage('lotes',this)"><span class="s-icon">📋</span> Precificações</button>
+    <button class="sidebar-item" onclick="showPage('pedidos',this)"><span class="s-icon">🛒</span> Pedidos</button>
   </nav>
   <div class="sidebar-footer">Quotes v2.0</div>
 </aside>
@@ -449,6 +450,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
     <div style="display:flex;gap:8px;">
       <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️ Editar Lote</button>
       <button class="btn btn-secondary btn-sm" onclick="verResumo()">📊 Resumo</button>
+      <button class="btn btn-secondary btn-sm" onclick="abrirGerarPedido()">🛒 Gerar Pedido</button>
       <button class="btn btn-secondary btn-sm" onclick="toggleCadastroRapido()">⚡ Rápido</button>
       <button class="btn btn-dark btn-sm" onclick="abrirSheetProduto()">＋ Produto</button>
     </div>
@@ -563,6 +565,103 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
   </div>
 </div>
 
+
+<!-- ════ PÁGINA: PEDIDOS ════ -->
+<div class="page" id="page-pedidos">
+  <div class="mobile-topbar">
+    <div class="mob-title">🛒 Pedidos</div>
+  </div>
+  <div class="desktop-topbar">
+    <div><div class="desktop-topbar-title">🛒 Pedidos de Importação</div><div class="desktop-topbar-sub">Pedidos gerados a partir das precificações</div></div>
+  </div>
+  <div class="page-content">
+    <div class="content">
+      <div class="search-wrap"><input type="text" id="ped_search" placeholder="Pesquisar pedido..." oninput="renderPedidosLista()"/></div>
+      <div class="card" id="ped_lista_card">
+        <div id="ped_lista_body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PÁGINA: EDITOR DE PEDIDO ════ -->
+<div class="page" id="page-pedido-editor">
+  <div class="mobile-topbar">
+    <button class="mob-back" onclick="voltarPedidos()">←</button>
+    <div style="flex:1;min-width:0;">
+      <div class="mob-title" id="ped_editor_nome_mob">—</div>
+      <div class="mob-sub" id="ped_editor_status_mob">—</div>
+    </div>
+  </div>
+  <div class="desktop-topbar">
+    <div>
+      <div class="desktop-topbar-title" id="ped_editor_nome_desk">—</div>
+      <div class="desktop-topbar-sub" id="ped_editor_info_desk">—</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="ped_status_sel" onchange="pedAlterarStatus()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;font-weight:600;">
+        <option value="rascunho">⏳ Rascunho</option>
+        <option value="enviado">📤 Enviado ao Fornecedor</option>
+        <option value="confirmado">✅ Confirmado</option>
+        <option value="cancelado">❌ Cancelado</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" onclick="pedVerLote()">📋 Ver Lote</button>
+      <button class="btn btn-secondary btn-sm" onclick="pedExportarPDF()">📄 PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="voltarPedidos()">← Voltar</button>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="content">
+      <!-- Totais -->
+      <div class="stat-row" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card dark"><div class="stat-label">Total RMB</div><div class="stat-value" id="ped_total_rmb">¥ 0,00</div></div>
+        <div class="stat-card"><div class="stat-label">Total USD</div><div class="stat-value" id="ped_total_usd">$ 0,00</div></div>
+        <div class="stat-card">
+          <div class="stat-label">Cotação RMB→USD</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+            <input type="number" id="ped_cotacao_rmb" inputmode="decimal" step="0.001"
+              style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:16px;font-weight:800;font-family:inherit;"
+              oninput="pedRecalcTotais();pedSincronizarCotacao()"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Observações -->
+      <div class="card">
+        <div class="card-header"><div class="card-header-title">📝 Observações</div></div>
+        <div class="card-body">
+          <textarea id="ped_obs" placeholder="Condições negociadas, prazo de entrega, número do pedido do fornecedor..."
+            style="width:100%;min-height:80px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;resize:vertical;"
+            oninput="pedAutoSave()"></textarea>
+        </div>
+      </div>
+
+      <!-- Produtos do pedido -->
+      <div class="card" style="overflow:hidden;">
+        <div class="card-header">
+          <div class="card-header-title">Produtos do Pedido</div>
+          <div style="font-size:11px;color:var(--muted);">Demarque para remover do pedido</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:var(--surface-2);">
+                <th style="padding:10px 12px;width:36px;"></th>
+                <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Produto</th>
+                <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Margem Média</th>
+                <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">¥ Unit.</th>
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Qtd</th>
+                <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Total ¥</th>
+              </tr>
+            </thead>
+            <tbody id="ped_itens_tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /main-area -->
 </div><!-- /app-shell -->
 
@@ -571,6 +670,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
   <button class="bnav-item" onclick="showPage('config',this)"><span class="bn-icon">⚙️</span>Config</button>
   <button class="bnav-item" onclick="showPage('ncm',this)"><span class="bn-icon">🗂️</span>NCMs</button>
   <button class="bnav-item active" onclick="showPage('lotes',this)"><span class="bn-icon">📋</span>Precificações</button>
+  <button class="bnav-item" onclick="showPage('pedidos',this)"><span class="bn-icon">🛒</span>Pedidos</button>
 </nav>
 
 <!-- FABs mobile -->
@@ -733,6 +833,24 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
           <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="mg_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('mg')"/></div>
         </div></div>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ SHEET: GERAR PEDIDO ══ -->
+<div class="sheet-overlay" id="sheet_gerar_pedido">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">🛒 Gerar Pedido</div>
+      <button class="sheet-close" onclick="fecharSheet('sheet_gerar_pedido')">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field"><label>Nome do Pedido *</label><input type="text" id="gp_nome" placeholder="Ex: Pedido Yongxing Jul/26"/></div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">Selecione os produtos</div>
+      <div id="gp_produtos_list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button class="btn btn-primary btn-block" onclick="confirmarGerarPedido()">Criar Pedido →</button>
     </div>
   </div>
 </div>
@@ -937,6 +1055,7 @@ function showPage(name,btn){
   else{document.getElementById('mobile-fab-lotes').style.display='none';}
   if(name==='ncm') renderNCMs();
   if(name==='config') renderConfig();
+  if(name==='pedidos') renderPedidosLista();
   window.scrollTo(0,0);
 }
 
@@ -1839,6 +1958,355 @@ function initDragDrop(){
       _dragIdx = null;
     });
   });
+}
+
+
+// ══ PEDIDOS ══
+function getPedidos(){ return JSON.parse(localStorage.getItem('qt_pedidos')||'[]'); }
+function savePedidos(d){ localStorage.setItem('qt_pedidos',JSON.stringify(d)); }
+
+let _pedAtual = null;
+
+// ── Gerar pedido a partir do lote ──
+function abrirGerarPedido(){
+  if(!_loteAtual || !_loteAtual.produtos.length){
+    showToast('⚠️','Adicione produtos ao lote primeiro.');return;
+  }
+  document.getElementById('gp_nome').value = 'Pedido ' + _loteAtual.nome + ' ' + new Date().toLocaleDateString('pt-BR');
+
+  const lista = document.getElementById('gp_produtos_list');
+  lista.innerHTML = _loteAtual.produtos.map((p,i) => {
+    // Calcular margem média do produto
+    const margens = MKT_KEYS.map(mk => p.mkt[mk]?.margem_p||0).filter(m => m > 0);
+    const margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
+    const mbCls = margemMedia !== null ? mbClass(margemMedia) : 'badge-gray';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);">
+      <input type="checkbox" id="gp_check_${i}" checked style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;"/>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:700;color:var(--ink);">${p.nome}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.sku||''} ${p.ncm?'· NCM: '+p.ncm:''}</div>
+      </div>
+      ${margemMedia!==null?`<span class="badge ${mbCls}" style="font-size:11px;">${fmtN(margemMedia)}%</span>`:''}
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:3px;">¥ RMB</div>
+        <input type="number" id="gp_rmb_${i}" value="${p.rmb}" inputmode="decimal" step="0.01"
+          style="width:80px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;text-align:right;font-family:inherit;"/>
+      </div>
+    </div>`;
+  }).join('');
+
+  abrirSheet('sheet_gerar_pedido');
+}
+
+function confirmarGerarPedido(){
+  const nome = document.getElementById('gp_nome')?.value?.trim();
+  if(!nome){ showToast('⚠️','Informe o nome do pedido.'); return; }
+
+  const itens = _loteAtual.produtos.map((p,i) => {
+    const checked = document.getElementById(`gp_check_${i}`)?.checked;
+    const rmb = parseFloat(document.getElementById(`gp_rmb_${i}`)?.value) || p.rmb;
+    const margens = MKT_KEYS.map(mk => p.mkt[mk]?.margem_p||0).filter(m => m > 0);
+    const margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
+    return { prodId: p.id, nome: p.nome, sku: p.sku||'', ncm: p.ncm||'', rmb, qtd: 0, selecionado: checked, margemMedia };
+  }).filter(it => it.selecionado);
+
+  if(!itens.length){ showToast('⚠️','Selecione ao menos um produto.'); return; }
+
+  const pedido = {
+    id: Date.now(),
+    nome,
+    loteId: _loteAtual.id,
+    loteNome: _loteAtual.nome,
+    cotRmb: _loteAtual.cotRmb,
+    cotUsd: _loteAtual.cotUsd,
+    status: 'rascunho',
+    statusHistory: [{ status:'rascunho', data: new Date().toISOString() }],
+    obs: '',
+    itens,
+    createdAt: new Date().toISOString(),
+  };
+
+  const all = getPedidos();
+  all.unshift(pedido);
+  savePedidos(all);
+  fecharSheet('sheet_gerar_pedido');
+  showToast('✅', `Pedido "${nome}" criado!`);
+  showPage('pedidos', document.querySelector('.sidebar-item[onclick*="pedidos"]'));
+  renderPedidosLista();
+}
+
+// ── Lista de pedidos ──
+function renderPedidosLista(){
+  const all = getPedidos();
+  const q = (document.getElementById('ped_search')?.value||'').toLowerCase();
+  const list = q ? all.filter(p => p.nome.toLowerCase().includes(q)) : all;
+  const body = document.getElementById('ped_lista_body');
+  if(!body) return;
+
+  if(!list.length){
+    body.innerHTML = `<div class="empty"><span class="empty-emoji">🛒</span><div class="empty-title">${q?'Nenhum resultado':'Nenhum pedido ainda'}</div><div class="empty-sub">Gere um pedido a partir de uma precificação</div></div>`;
+    return;
+  }
+
+  const statusLabel = { rascunho:'⏳ Rascunho', enviado:'📤 Enviado', confirmado:'✅ Confirmado', cancelado:'❌ Cancelado' };
+  const statusBadge = { rascunho:'badge-gray', enviado:'badge-yellow', confirmado:'badge-green', cancelado:'badge-red' };
+
+  body.innerHTML = list.map((p,i) => {
+    const realIdx = all.findIndex(x => x.id === p.id);
+    const totalRmb = p.itens.reduce((s,it) => s+(it.rmb*(it.qtd||0)),0);
+    const data = new Date(p.createdAt).toLocaleDateString('pt-BR');
+    return `<div class="list-item" onclick="abrirPedido(${realIdx})">
+      <div class="list-item-icon">🛒</div>
+      <div class="list-item-body">
+        <div class="list-item-title">${p.nome}</div>
+        <div class="list-item-sub">${data} · ${p.loteNome} · ${p.itens.length} produto${p.itens.length!==1?'s':''}</div>
+      </div>
+      <div class="list-item-right">
+        <span class="badge ${statusBadge[p.status]||'badge-gray'}">${statusLabel[p.status]||p.status}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--ink);">¥ ${fmtN(totalRmb)}</span>
+        <button onclick="event.stopPropagation();excluirPedido(${realIdx})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Abrir pedido ──
+function abrirPedido(idx){
+  const all = getPedidos();
+  _pedAtual = JSON.parse(JSON.stringify(all[idx]));
+  renderPedidoEditor();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-pedido-editor').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function voltarPedidos(){
+  _pedAtual = null;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-pedidos').classList.add('active');
+  document.querySelectorAll('.sidebar-item[onclick*="pedidos"],.bnav-item[onclick*="pedidos"]').forEach(b=>b.classList.add('active'));
+  renderPedidosLista();
+  window.scrollTo(0,0);
+}
+
+function renderPedidoEditor(){
+  if(!_pedAtual) return;
+  const statusLabel = { rascunho:'⏳ Rascunho', enviado:'📤 Enviado ao Fornecedor', confirmado:'✅ Confirmado', cancelado:'❌ Cancelado' };
+
+  document.getElementById('ped_editor_nome_desk').textContent = _pedAtual.nome;
+  document.getElementById('ped_editor_nome_mob').textContent = _pedAtual.nome;
+  document.getElementById('ped_editor_info_desk').textContent = `${_pedAtual.loteNome} · ${new Date(_pedAtual.createdAt).toLocaleDateString('pt-BR')}`;
+  document.getElementById('ped_editor_status_mob').textContent = statusLabel[_pedAtual.status]||_pedAtual.status;
+  document.getElementById('ped_status_sel').value = _pedAtual.status;
+  document.getElementById('ped_cotacao_rmb').value = _pedAtual.cotRmb;
+  document.getElementById('ped_obs').value = _pedAtual.obs||'';
+
+  pedRecalcTotais();
+  pedRenderItens();
+}
+
+function pedRenderItens(){
+  const tbody = document.getElementById('ped_itens_tbody');
+  if(!tbody||!_pedAtual) return;
+
+  tbody.innerHTML = _pedAtual.itens.map((it,i) => {
+    const total = (it.rmb||0) * (it.qtd||0);
+    const mbCls = it.margemMedia !== null && it.margemMedia !== undefined ? mbClass(it.margemMedia) : 'badge-gray';
+    return `<tr style="border-bottom:1px solid var(--border-2);">
+      <td style="padding:10px 12px;text-align:center;">
+        <input type="checkbox" ${it.selecionado!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--accent);"
+          onchange="_pedAtual.itens[${i}].selecionado=this.checked;pedRecalcTotais();pedAutoSave()"/>
+      </td>
+      <td style="padding:10px 12px;">
+        <div style="font-weight:700;font-size:13px;color:var(--ink);">${it.nome}</div>
+        <div style="font-size:11px;color:var(--muted-2);">${it.sku||''}</div>
+      </td>
+      <td style="padding:10px 12px;">
+        ${it.margemMedia!==null&&it.margemMedia!==undefined?`<span class="badge ${mbCls}">${fmtN(it.margemMedia)}%</span>`:'<span style="color:var(--muted-2);font-size:12px;">—</span>'}
+      </td>
+      <td style="padding:10px 12px;text-align:right;">
+        <input type="number" value="${it.rmb||''}" inputmode="decimal" step="0.01"
+          style="width:80px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;text-align:right;font-family:inherit;"
+          onchange="_pedAtual.itens[${i}].rmb=parseFloat(this.value)||0;pedRecalcTotais();pedAutoSave()"/>
+      </td>
+      <td style="padding:10px 12px;text-align:center;">
+        <input type="number" value="${it.qtd||''}" inputmode="numeric" min="0" placeholder="0"
+          style="width:70px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;text-align:center;font-family:inherit;"
+          onchange="_pedAtual.itens[${i}].qtd=parseInt(this.value)||0;pedRecalcTotais();pedAutoSave()"/>
+      </td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:13px;color:var(--ink);">
+        ${total > 0 ? '¥ '+fmtN(total) : '—'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function pedRecalcTotais(){
+  if(!_pedAtual) return;
+  const cotRmb = parseFloat(document.getElementById('ped_cotacao_rmb')?.value) || _pedAtual.cotRmb || 7;
+  const totalRmb = _pedAtual.itens.filter(it=>it.selecionado!==false).reduce((s,it)=>s+(it.rmb||0)*(it.qtd||0),0);
+  const totalUsd = totalRmb / cotRmb;
+  const rmb_el = document.getElementById('ped_total_rmb');
+  const usd_el = document.getElementById('ped_total_usd');
+  if(rmb_el) rmb_el.textContent = '¥ ' + fmtN(totalRmb);
+  if(usd_el) usd_el.textContent = '$ ' + fmtN(totalUsd);
+}
+
+function pedSincronizarCotacao(){
+  if(!_pedAtual) return;
+  const novaCot = parseFloat(document.getElementById('ped_cotacao_rmb')?.value) || 0;
+  if(!novaCot) return;
+  _pedAtual.cotRmb = novaCot;
+  // Atualizar cotação no lote vinculado
+  const all = getLotes();
+  const loteIdx = all.findIndex(l => l.id === _pedAtual.loteId);
+  if(loteIdx >= 0){
+    all[loteIdx].cotRmb = novaCot;
+    // Recalcular CMV de todos os produtos do lote
+    all[loteIdx].produtos.forEach((p,pi) => {
+      const c = calcCMV(p.rmb, p.categ, all[loteIdx].cenario, novaCot, all[loteIdx].cotUsd, p.ii_p, p.ipi_p, p.cofins_p, p.icms_p);
+      Object.assign(all[loteIdx].produtos[pi], c);
+    });
+    saveLotes(all);
+    if(_loteAtual && _loteAtual.id === _pedAtual.loteId){
+      _loteAtual.cotRmb = novaCot;
+    }
+  }
+  pedAutoSave();
+}
+
+function pedAlterarStatus(){
+  if(!_pedAtual) return;
+  const novo = document.getElementById('ped_status_sel')?.value;
+  _pedAtual.status = novo;
+  if(novo === 'enviado'){
+    _pedAtual.dataEnvio = new Date().toISOString();
+    const infoEl = document.getElementById('ped_editor_info_desk');
+    if(infoEl) infoEl.textContent = `${_pedAtual.loteNome} · Enviado em ${new Date().toLocaleDateString('pt-BR')}`;
+  }
+  pedAutoSave();
+  showToast('✅', `Status atualizado!`);
+}
+
+let _pedAutoSaveTimer = null;
+function pedAutoSave(){
+  if(!_pedAtual) return;
+  _pedAtual.obs = document.getElementById('ped_obs')?.value || '';
+  clearTimeout(_pedAutoSaveTimer);
+  _pedAutoSaveTimer = setTimeout(() => {
+    const all = getPedidos();
+    const idx = all.findIndex(p => p.id === _pedAtual.id);
+    if(idx >= 0) all[idx] = _pedAtual; else all.unshift(_pedAtual);
+    savePedidos(all);
+  }, 600);
+}
+
+function pedVerLote(){
+  if(!_pedAtual) return;
+  const all = getLotes();
+  const loteIdx = all.findIndex(l => l.id === _pedAtual.loteId);
+  if(loteIdx < 0){ showToast('⚠️','Lote não encontrado.'); return; }
+  _loteAtual = JSON.parse(JSON.stringify(all[loteIdx]));
+  abrirEditor();
+}
+
+async function excluirPedido(idx){
+  const ok = await showConfirm('Excluir Pedido','Deseja excluir este pedido permanentemente?','Excluir','Cancelar');
+  if(!ok) return;
+  const all = getPedidos(); all.splice(idx,1); savePedidos(all); renderPedidosLista();
+  showToast('🗑️','Pedido excluído.');
+}
+
+// ── Exportar PDF ──
+function pedExportarPDF(){
+  if(!_pedAtual) return;
+  const cotRmb = parseFloat(document.getElementById('ped_cotacao_rmb')?.value) || _pedAtual.cotRmb || 7;
+  const itensSel = _pedAtual.itens.filter(it => it.selecionado !== false);
+  const totalRmb = itensSel.reduce((s,it) => s+(it.rmb||0)*(it.qtd||0), 0);
+  const totalUsd = totalRmb / cotRmb;
+  const statusLabel = { rascunho:'Rascunho', enviado:'Enviado ao Fornecedor', confirmado:'Confirmado', cancelado:'Cancelado' };
+  const data = new Date().toLocaleDateString('pt-BR');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Plus Jakarta Sans',sans-serif;color:#0a0a0f;background:white;padding:40px;}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #0070F3;}
+    .logo{font-size:28px;font-weight:900;letter-spacing:-1px;color:#0a0a0f;}
+    .logo em{font-style:normal;color:#5b5fc7;}
+    .logo span{display:block;font-size:12px;font-weight:500;color:#9898aa;margin-top:2px;}
+    .header-info{text-align:right;}
+    .header-info h1{font-size:20px;font-weight:900;color:#0a0a0f;letter-spacing:-.4px;}
+    .header-info p{font-size:12px;color:#6b6b80;margin-top:4px;}
+    .status-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#eef2ff;color:#5b5fc7;margin-top:6px;}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;}
+    .info-card{background:#f7f7fb;border-radius:10px;padding:14px 16px;}
+    .info-label{font-size:10px;font-weight:700;color:#9898aa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
+    .info-value{font-size:18px;font-weight:900;color:#0a0a0f;letter-spacing:-.4px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+    thead tr{background:#0a0a0f;color:white;}
+    th{padding:12px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+    th:last-child,td:last-child{text-align:right;}
+    td{padding:12px 14px;border-bottom:1px solid #f0f0f5;font-size:13px;}
+    tbody tr:nth-child(even){background:#f7f7fb;}
+    .totais{background:#0a0a0f;border-radius:12px;padding:20px 24px;color:white;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+    .total-item{text-align:center;}
+    .total-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+    .total-value{font-size:22px;font-weight:900;letter-spacing:-.5px;}
+    .obs{background:#f7f7fb;border-radius:10px;padding:16px;margin-bottom:24px;}
+    .obs-title{font-size:11px;font-weight:700;color:#9898aa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+    .obs-text{font-size:13px;color:#2e2e3e;line-height:1.6;}
+    .footer{text-align:center;font-size:11px;color:#9898aa;border-top:1px solid #f0f0f5;padding-top:16px;}
+  </style>
+  </head><body>
+  <div class="header">
+    <div class="logo">Quot<em>es</em><span>by LogBox</span></div>
+    <div class="header-info">
+      <h1>${_pedAtual.nome}</h1>
+      <p>Gerado em ${data}</p>
+      <div class="status-badge">${statusLabel[_pedAtual.status]||_pedAtual.status}</div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card"><div class="info-label">Lote Vinculado</div><div class="info-value" style="font-size:14px;">${_pedAtual.loteNome}</div></div>
+    <div class="info-card"><div class="info-label">Total RMB</div><div class="info-value">¥ ${fmtN(totalRmb)}</div></div>
+    <div class="info-card"><div class="info-label">Total USD</div><div class="info-value">$ ${fmtN(totalUsd)}</div></div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>#</th><th>Produto</th><th>SKU</th><th style="text-align:right;">¥ Unit.</th><th style="text-align:center;">Qtd</th><th>Total ¥</th>
+    </tr></thead>
+    <tbody>
+      ${itensSel.map((it,i) => `<tr>
+        <td style="color:#9898aa;font-weight:600;">${String(i+1).padStart(2,'0')}</td>
+        <td style="font-weight:700;">${it.nome}</td>
+        <td style="color:#6b6b80;">${it.sku||'—'}</td>
+        <td style="text-align:right;font-weight:700;">¥ ${fmtN(it.rmb||0)}</td>
+        <td style="text-align:center;font-weight:700;">${it.qtd||0}</td>
+        <td style="font-weight:800;color:#0a0a0f;">¥ ${fmtN((it.rmb||0)*(it.qtd||0))}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+
+  <div class="totais">
+    <div class="total-item"><div class="total-label">Produtos</div><div class="total-value">${itensSel.length}</div></div>
+    <div class="total-item"><div class="total-label">Total RMB</div><div class="total-value">¥ ${fmtN(totalRmb)}</div></div>
+    <div class="total-item"><div class="total-label">Cotação RMB/USD</div><div class="total-value">${cotRmb}</div></div>
+    <div class="total-item"><div class="total-label">Total USD</div><div class="total-value">$ ${fmtN(totalUsd)}</div></div>
+  </div>
+
+  ${_pedAtual.obs ? `<div class="obs"><div class="obs-title">Observações</div><div class="obs-text">${_pedAtual.obs}</div></div>` : ''}
+
+  <div class="footer">Quotes by LogBox · Pedido gerado em ${data}</div>
+  </body></html>`;
+
+  const win = window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
 }
 
 // ── INIT ──
