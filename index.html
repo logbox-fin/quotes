@@ -226,7 +226,9 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
 .stat-card.accent .stat-value{color:white;}
 
 /* ── PROD CARD ── */
-.prod-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:10px;}
+.prod-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:10px;cursor:grab;transition:box-shadow var(--t),opacity var(--t);}
+.prod-card.dragging{opacity:.5;box-shadow:var(--shadow-md);cursor:grabbing;}
+.prod-card.drag-over{border:2px dashed var(--accent);background:var(--accent-bg);}
 .prod-card-header{padding:14px 16px;background:var(--surface-2);border-bottom:1px solid var(--border-2);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
 .prod-card-name{font-weight:800;font-size:17px;color:var(--ink);letter-spacing:-.4px;display:flex;align-items:center;gap:6px;}
 .prod-card-sku{font-size:11px;color:var(--muted-2);margin-top:3px;}
@@ -436,6 +438,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
       <div class="mob-title" id="editor_nome_mob">—</div>
       <div class="mob-sub" id="editor_info_mob" onclick="abrirSheetEditarLote()" style="cursor:pointer;">— <span style="color:var(--accent);font-weight:700;">✏️</span></div>
     </div>
+    <button class="btn btn-secondary btn-sm" onclick="toggleCadastroRapido()" style="margin-right:4px;">⚡</button>
     <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️</button>
   </div>
   <div class="desktop-topbar">
@@ -446,6 +449,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
     <div style="display:flex;gap:8px;">
       <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️ Editar Lote</button>
       <button class="btn btn-secondary btn-sm" onclick="verResumo()">📊 Resumo</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleCadastroRapido()">⚡ Rápido</button>
       <button class="btn btn-dark btn-sm" onclick="abrirSheetProduto()">＋ Produto</button>
     </div>
   </div>
@@ -455,6 +459,36 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
         <div class="stat-card dark"><div class="stat-label">Produtos</div><div class="stat-value" id="editor_total">0</div></div>
         <div class="stat-card"><div class="stat-label">Cenário Frete</div><div class="stat-value" id="editor_cenario_badge" style="font-size:14px;">—</div></div>
       </div>
+      
+<!-- ══ CADASTRO RÁPIDO ══ -->
+<div id="cadastro_rapido_panel" style="display:none;background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:12px;">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.3px;">⚡ Cadastro Rápido</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary btn-sm" onclick="salvarCadastroRapido()">✅ Adicionar Todos</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleCadastroRapido()">Fechar</button>
+    </div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;" id="cr_table">
+      <thead>
+        <tr style="background:var(--surface-2);">
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Nome *</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">SKU</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">NCM</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">¥ RMB *</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Categoria</th>
+          <th style="padding:10px 8px;"></th>
+        </tr>
+      </thead>
+      <tbody id="cr_tbody"></tbody>
+    </table>
+  </div>
+  <div style="padding:10px 16px;border-top:1px solid var(--border-2);">
+    <button class="btn btn-secondary btn-sm" onclick="crAddLinha()">＋ Linha</button>
+  </div>
+</div>
+
       <div id="editor_produtos_list"></div>
     </div>
   </div>
@@ -597,7 +631,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
 <div class="sheet-overlay" id="sheet_produto">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-header"><div class="sheet-title" id="sheet_prod_title">＋ Produto</div><button class="sheet-close" onclick="fecharSheet('sheet_produto')">×</button></div>
+    <div class="sheet-header"><div class="sheet-title" id="sheet_prod_title">＋ Produto</div><div style="display:flex;gap:8px;align-items:center;"><button class="btn btn-primary btn-sm" onclick="salvarProduto()" style="padding:8px 16px;">Salvar →</button><button class="sheet-close" onclick="fecharSheet('sheet_produto')">×</button></div></div>
     <div class="sheet-body">
       <div class="field"><label>Nome *</label><input type="text" id="mp_nome" placeholder="Nome do produto"/></div>
       <div class="g2">
@@ -699,7 +733,6 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
           <div class="mkt-input-group"><div class="mkt-input-label">ADS %</div><input class="mkt-input" type="number" id="mg_ads" value="0" inputmode="decimal" oninput="atualizarMargemInline('mg')"/></div>
         </div></div>
       </div>
-      <button class="btn btn-primary btn-block" onclick="salvarProduto()">Adicionar Produto →</button>
     </div>
   </div>
 </div>
@@ -1364,7 +1397,7 @@ function renderProdutos(){
       if(!m?.preco) return '';
       return `<span class="badge ${mbClass(m.margem_p)}" style="font-size:11px;font-weight:700;cursor:pointer;" onclick="abrirModalMktFromEditor(${i},'${mk}')">${MKT_SHORT[mk]} ${fmtN(m.margem_p)}%</span>`;
     }).filter(Boolean).join('');
-    return `<div class="prod-card">
+    return `<div class="prod-card" data-idx="${i}">
       <div class="prod-card-header">
         <div>
           <div class="prod-card-name">${catIcon[p.categ]||''} ${p.nome}</div>
@@ -1385,6 +1418,7 @@ function renderProdutos(){
       </div>
     </div>`;
   }).join('')+`<button class="btn btn-success btn-block" onclick="verResumo()" style="margin-top:4px;">📊 Ver Resumo do Lote</button>`;
+  setTimeout(initDragDrop, 50);
 }
 
 async function removerProduto(i){
@@ -1644,6 +1678,167 @@ async function excluirNCM(i){
   const ok=await showConfirm('Excluir NCM','Remover este NCM do banco?','Excluir','Cancelar');
   if(!ok) return;
   const list=getNCMs();const nv=list[i]?.ncm;list.splice(i,1);saveNCMs(list);if(nv)syncNCMDelete(nv);renderNCMs();showToast('🗑️','NCM removido.');
+}
+
+
+// ══ CADASTRO RÁPIDO ══
+let _crLinhas = [];
+
+function toggleCadastroRapido(){
+  const panel = document.getElementById('cadastro_rapido_panel');
+  if(!panel) return;
+  const showing = panel.style.display !== 'none';
+  panel.style.display = showing ? 'none' : 'block';
+  if(!showing){
+    _crLinhas = [];
+    crAddLinha();
+    crRenderTabela();
+  }
+}
+
+function crAddLinha(){
+  _crLinhas.push({ nome:'', sku:'', ncm:'', rmb:'', categ:'medio' });
+  crRenderTabela();
+  // Focar no campo nome da última linha
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('.cr-nome-input');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function crRenderTabela(){
+  const tbody = document.getElementById('cr_tbody');
+  if(!tbody) return;
+  tbody.innerHTML = _crLinhas.map((l, i) => `
+    <tr style="border-bottom:1px solid var(--border-2);">
+      <td style="padding:6px 8px;min-width:160px;">
+        <input class="cr-nome-input" type="text" value="${l.nome||''}" placeholder="Nome do produto"
+          style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;"
+          oninput="_crLinhas[${i}].nome=this.value"
+          onkeydown="if(event.key==='Tab'&&!event.shiftKey&&${i}===_crLinhas.length-1){event.preventDefault();crAddLinha();}" />
+      </td>
+      <td style="padding:6px 8px;min-width:100px;">
+        <input type="text" value="${l.sku||''}" placeholder="SKU"
+          style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;"
+          oninput="_crLinhas[${i}].sku=this.value" />
+      </td>
+      <td style="padding:6px 8px;min-width:120px;">
+        <div style="display:flex;gap:4px;">
+          <input type="text" value="${l.ncm||''}" placeholder="0000.00.00"
+            style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;"
+            oninput="formatNCM(this);_crLinhas[${i}].ncm=this.value" />
+          <button onclick="crBuscarNCM(${i},this)" style="background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,95,199,.2);border-radius:7px;padding:6px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">OK</button>
+        </div>
+      </td>
+      <td style="padding:6px 8px;min-width:90px;">
+        <input type="number" value="${l.rmb||''}" placeholder="0,00" inputmode="decimal"
+          style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;"
+          oninput="_crLinhas[${i}].rmb=this.value" />
+      </td>
+      <td style="padding:6px 8px;min-width:110px;">
+        <select style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:white;"
+          onchange="_crLinhas[${i}].categ=this.value">
+          <option value="bom" ${l.categ==='bom'?'selected':''}>🟢 Bom</option>
+          <option value="medio" ${l.categ==='medio'?'selected':''}>🟡 Médio</option>
+          <option value="ruim" ${l.categ==='ruim'?'selected':''}>🔴 Ruim</option>
+        </select>
+      </td>
+      <td style="padding:6px 8px;">
+        <button onclick="crRemoverLinha(${i})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function crRemoverLinha(i){
+  _crLinhas.splice(i, 1);
+  crRenderTabela();
+}
+
+function crBuscarNCM(i, btn){
+  const ncmVal = (_crLinhas[i].ncm||'').replace(/\D/g,'');
+  if(!ncmVal){ showToast('⚠️','Informe o NCM.'); return; }
+  const list = getNCMs();
+  const found = list.find(r => String(r.ncm).replace(/\D/g,'') === ncmVal);
+  if(found){
+    _crLinhas[i].ii_p    = found.ii;
+    _crLinhas[i].ipi_p   = found.ipi;
+    _crLinhas[i].cofins_p= found.cofins;
+    _crLinhas[i].icms_p  = found.icms;
+    btn.textContent = '✅';
+    btn.style.background = 'var(--green-bg)';
+    btn.style.color = 'var(--green)';
+    showToast('✅', 'NCM encontrado — alíquotas carregadas!');
+  } else {
+    showToast('⚠️','NCM não encontrado no banco.');
+  }
+}
+
+function salvarCadastroRapido(){
+  const validos = _crLinhas.filter(l => l.nome && l.rmb);
+  if(!validos.length){ showToast('⚠️','Preencha ao menos nome e RMB.'); return; }
+
+  validos.forEach(l => {
+    const rmb      = parseFloat(l.rmb) || 0;
+    const categ    = l.categ || 'medio';
+    const ii_p     = parseFloat(l.ii_p) || 0;
+    const ipi_p    = parseFloat(l.ipi_p) || 0;
+    const cofins_p = parseFloat(l.cofins_p) || 9.65;
+    const icms_p   = parseFloat(l.icms_p) || 18;
+    const c = calcCMV(rmb, categ, _loteAtual.cenario, _loteAtual.cotRmb, _loteAtual.cotUsd, ii_p, ipi_p, cofins_p, icms_p);
+    const mkt = {};
+    MKT_KEYS.forEach(mk => {
+      mkt[mk] = { preco:0, frete:MKT_DEF[mk]?.f||0, tarifa:MKT_DEF[mk]?.t||0, rebate:0, ads:0, margem_rs:0, margem_p:0 };
+    });
+    _loteAtual.produtos.push({ id:Date.now()+Math.random(), nome:l.nome, sku:l.sku||'', ncm:l.ncm||'', categ, rmb, ii_p, ipi_p, cofins_p, icms_p, ...c, mkt });
+  });
+
+  toggleCadastroRapido();
+  renderProdutos();
+  autoSave();
+  showToast('✅', `${validos.length} produto${validos.length>1?'s':''} adicionado${validos.length>1?'s':''}!`);
+}
+
+// ══ DRAG AND DROP ══
+let _dragIdx = null;
+
+function initDragDrop(){
+  const cards = document.querySelectorAll('.prod-card[data-idx]');
+  cards.forEach(card => {
+    card.setAttribute('draggable', 'true');
+
+    card.addEventListener('dragstart', e => {
+      _dragIdx = parseInt(card.dataset.idx);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.prod-card').forEach(c => c.classList.remove('drag-over'));
+    });
+
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.prod-card').forEach(c => c.classList.remove('drag-over'));
+      card.classList.add('drag-over');
+    });
+
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      const toIdx = parseInt(card.dataset.idx);
+      if(_dragIdx === null || _dragIdx === toIdx) return;
+      // Reordenar
+      const arr = _loteAtual.produtos;
+      const [moved] = arr.splice(_dragIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      _loteAtual.produtos = arr;
+      renderProdutos();
+      autoSave();
+      _dragIdx = null;
+    });
+  });
 }
 
 // ── INIT ──
