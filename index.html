@@ -419,9 +419,11 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
   </div>
   <div class="page-content">
     <div class="content">
-      <!-- Busca + ordenação -->
-      <div class="g2" style="gap:8px;">
-        <div class="search-wrap"><input type="text" id="lotes_search" placeholder="Pesquisar lote..." oninput="renderLotes()"/></div>
+      <!-- Busca + filtros lotes -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="search-wrap" style="flex:1;min-width:200px;"><input type="text" id="lotes_search" placeholder="Pesquisar lote..." oninput="renderLotes()"/></div>
+        <select id="lotes_filtro_marca" onchange="renderLotes()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;"><option value="">Todas as marcas</option></select>
+        <select id="lotes_filtro_resp" onchange="renderLotes()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;"><option value="">Todos os responsáveis</option></select>
         <button class="btn btn-secondary btn-sm" onclick="toggleOrdemLotes()" id="btn_ordem_lotes">A→Z</button>
       </div>
       <div class="card" id="lotes_card">
@@ -561,6 +563,24 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
         <div class="config-section-title" style="margin-bottom:10px;">📋 Histórico de Cotações</div>
         <div id="cfg_historico"></div>
       </div>
+
+      <div class="config-card">
+        <div class="config-section-title" style="margin-bottom:12px;">🏷️ Marcas</div>
+        <div id="cfg_marcas_list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="cfg_nova_marca" placeholder="Nova marca..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;"/>
+          <button class="btn btn-primary btn-sm" onclick="cfgAddMarca()">＋ Adicionar</button>
+        </div>
+      </div>
+
+      <div class="config-card">
+        <div class="config-section-title" style="margin-bottom:12px;">👤 Responsáveis</div>
+        <div id="cfg_resps_list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="cfg_novo_resp" placeholder="Nome do responsável..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;"/>
+          <button class="btn btn-primary btn-sm" onclick="cfgAddResp()">＋ Adicionar</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -576,7 +596,24 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
   </div>
   <div class="page-content">
     <div class="content">
-      <div class="search-wrap"><input type="text" id="ped_search" placeholder="Pesquisar pedido..." oninput="renderPedidosLista()"/></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="search-wrap" style="flex:1;min-width:200px;"><input type="text" id="ped_search" placeholder="Pesquisar pedido..." oninput="renderPedidosLista()"/></div>
+        <select id="ped_filtro_status" onchange="renderPedidosLista()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;">
+          <option value="">Todos os status</option>
+          <option value="rascunho">⏳ Rascunho</option>
+          <option value="enviado">📤 Enviado</option>
+          <option value="confirmado">✅ Confirmado</option>
+          <option value="cancelado">❌ Cancelado</option>
+        </select>
+        <select id="ped_filtro_marca" onchange="renderPedidosLista()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;"><option value="">Todas as marcas</option></select>
+        <select id="ped_filtro_resp" onchange="renderPedidosLista()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;"><option value="">Todos os responsáveis</option></select>
+        <select id="ped_ordem" onchange="renderPedidosLista()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;">
+          <option value="data_desc">Data (recente)</option>
+          <option value="data_asc">Data (antiga)</option>
+          <option value="nome_az">Nome A→Z</option>
+          <option value="nome_za">Nome Z→A</option>
+        </select>
+      </div>
       <div class="card" id="ped_lista_card">
         <div id="ped_lista_body"></div>
       </div>
@@ -595,7 +632,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
   </div>
   <div class="desktop-topbar">
     <div>
-      <div class="desktop-topbar-title" id="ped_editor_nome_desk">—</div>
+      <div class="desktop-topbar-title" id="ped_editor_nome_desk" contenteditable="true" style="outline:none;border-bottom:2px dashed transparent;cursor:text;" onblur="pedSalvarNome(this)" onfocus="this.style.borderBottomColor='var(--accent)'" onblur="this.style.borderBottomColor='transparent';pedSalvarNome(this)">—</div>
       <div class="desktop-topbar-sub" id="ped_editor_info_desk">—</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -646,6 +683,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
           <table style="width:100%;border-collapse:collapse;">
             <thead>
               <tr style="background:var(--surface-2);">
+                <th style="padding:10px 8px;width:30px;color:var(--muted);font-size:12px;" title="Arrastar para reordenar">⠿</th>
                 <th style="padding:10px 12px;width:36px;"></th>
                 <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Produto</th>
                 <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Margem Média</th>
@@ -695,6 +733,15 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
         <div class="field"><label>RMB → USD</label><input type="number" id="nl_rmb_usd" inputmode="decimal" step="0.001"/></div>
         <div class="field"><label>USD → BRL</label><input type="number" id="nl_usd_brl" inputmode="decimal" step="0.01"/></div>
       </div>
+      <div class="section-title">Informações Adicionais</div>
+      <div class="g2">
+        <div class="field"><label>Marca</label>
+          <select id="nl_marca"><option value="">Selecionar...</option></select>
+        </div>
+        <div class="field"><label>Responsável</label>
+          <select id="nl_resp"><option value="">Selecionar...</option></select>
+        </div>
+      </div>
       <button class="btn btn-primary btn-block" onclick="criarLote()">Criar Quote →</button>
     </div>
   </div>
@@ -721,6 +768,15 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
       <div class="g2">
         <div class="field"><label>RMB → USD</label><input type="number" id="el_rmb_usd" inputmode="decimal" step="0.001"/></div>
         <div class="field"><label>USD → BRL</label><input type="number" id="el_usd_brl" inputmode="decimal" step="0.01"/></div>
+      </div>
+      <div class="section-title">Informações Adicionais</div>
+      <div class="g2">
+        <div class="field"><label>Marca</label>
+          <select id="el_marca"><option value="">Selecionar...</option></select>
+        </div>
+        <div class="field"><label>Responsável</label>
+          <select id="el_resp"><option value="">Selecionar...</option></select>
+        </div>
       </div>
       <button class="btn btn-primary btn-block" onclick="salvarEdicaoLote()">Salvar Alterações →</button>
     </div>
@@ -1131,6 +1187,9 @@ function salvarConfig(){
 }
 
 function renderConfig(){
+  cfgRenderMarcas();
+  cfgRenderResps();
+  cfgPopulateSelects();
   const cfg=getConfig();
   const rmbEl=document.getElementById('cfg_rmb_usd');
   const usdEl=document.getElementById('cfg_usd_brl');
@@ -1171,6 +1230,7 @@ function abrirNovoLote(){
   document.getElementById('nl_cenario').value=cfg.cenario||'medio';
   document.getElementById('nl_rmb_usd').value=cfg.rmb_usd||7;
   document.getElementById('nl_usd_brl').value=cfg.usd_brl||5.80;
+  cfgPopulateSelects();
   abrirSheet('sheet_novo_lote');
   setTimeout(()=>document.getElementById('nl_nome').focus(),300);
 }
@@ -1183,6 +1243,8 @@ function criarLote(){
     cenario:gs('nl_cenario')||'medio',
     cotRmb:parseFloat(document.getElementById('nl_rmb_usd').value)||7,
     cotUsd:parseFloat(document.getElementById('nl_usd_brl').value)||5.80,
+    marca:gs('nl_marca')||'',
+    responsavel:gs('nl_resp')||'',
     status:'rascunho',
     createdAt:new Date().toISOString(),
     produtos:[]
@@ -1244,7 +1306,11 @@ function autoSave(){
 function renderLotes(){
   let all=getLotes();
   const q=(document.getElementById('lotes_search')?.value||'').toLowerCase();
+  const fMarca=(document.getElementById('lotes_filtro_marca')?.value||'');
+  const fResp=(document.getElementById('lotes_filtro_resp')?.value||'');
   if(q) all=all.filter(l=>l.nome.toLowerCase().includes(q));
+  if(fMarca) all=all.filter(l=>(l.marca||'')=== fMarca);
+  if(fResp) all=all.filter(l=>(l.responsavel||'')=== fResp);
   if(_ordemLotesAZ) all=[...all].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   const body=document.getElementById('lotes_body');
   if(!body) return;
@@ -1320,6 +1386,9 @@ function abrirSheetEditarLote(){
   document.getElementById('el_cenario').value=_loteAtual.cenario||'medio';
   document.getElementById('el_rmb_usd').value=_loteAtual.cotRmb||7;
   document.getElementById('el_usd_brl').value=_loteAtual.cotUsd||5.80;
+  cfgPopulateSelects();
+  if(_loteAtual.marca) document.getElementById('el_marca').value=_loteAtual.marca;
+  if(_loteAtual.responsavel) document.getElementById('el_resp').value=_loteAtual.responsavel;
   abrirSheet('sheet_editar_lote');
 }
 
@@ -1331,6 +1400,8 @@ function salvarEdicaoLote(){
   const novoUsd=parseFloat(document.getElementById('el_usd_brl').value)||5.80;
   const mudou=novoCen!==_loteAtual.cenario||novoRmb!==_loteAtual.cotRmb||novoUsd!==_loteAtual.cotUsd;
   _loteAtual.nome=nome;_loteAtual.cenario=novoCen;_loteAtual.cotRmb=novoRmb;_loteAtual.cotUsd=novoUsd;
+  _loteAtual.marca=gs('el_marca')||_loteAtual.marca||'';
+  _loteAtual.responsavel=gs('el_resp')||_loteAtual.responsavel||'';
   if(mudou&&_loteAtual.produtos.length){
     _loteAtual.produtos.forEach((p,i)=>{
       const c=calcCMV(p.rmb,p.categ,novoCen,novoRmb,novoUsd,p.ii_p,p.ipi_p,p.cofins_p,p.icms_p);
@@ -2017,6 +2088,8 @@ function confirmarGerarPedido(){
     nome,
     loteId: _loteAtual.id,
     loteNome: _loteAtual.nome,
+    marca: _loteAtual.marca||'',
+    responsavel: _loteAtual.responsavel||'',
     cotRmb: _loteAtual.cotRmb,
     cotUsd: _loteAtual.cotUsd,
     status: 'rascunho',
@@ -2037,9 +2110,21 @@ function confirmarGerarPedido(){
 
 // ── Lista de pedidos ──
 function renderPedidosLista(){
-  const all = getPedidos();
+  let all = getPedidos();
   const q = (document.getElementById('ped_search')?.value||'').toLowerCase();
-  const list = q ? all.filter(p => p.nome.toLowerCase().includes(q)) : all;
+  const fStatus = (document.getElementById('ped_filtro_status')?.value||'');
+  const fMarca  = (document.getElementById('ped_filtro_marca')?.value||'');
+  const fResp   = (document.getElementById('ped_filtro_resp')?.value||'');
+  const ordem   = (document.getElementById('ped_ordem')?.value||'data_desc');
+  if(q) all = all.filter(p => p.nome.toLowerCase().includes(q));
+  if(fStatus) all = all.filter(p => p.status === fStatus);
+  if(fMarca)  all = all.filter(p => (p.marca||'') === fMarca);
+  if(fResp)   all = all.filter(p => (p.responsavel||'') === fResp);
+  if(ordem==='nome_az') all=[...all].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  else if(ordem==='nome_za') all=[...all].sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR'));
+  else if(ordem==='data_asc') all=[...all].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  else all=[...all].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const list = all;
   const body = document.getElementById('ped_lista_body');
   if(!body) return;
 
@@ -2103,6 +2188,7 @@ function renderPedidoEditor(){
 
   pedRecalcTotais();
   pedRenderItens();
+  setTimeout(initPedDragDrop, 50);
 }
 
 function pedRenderItens(){
@@ -2112,7 +2198,8 @@ function pedRenderItens(){
   tbody.innerHTML = _pedAtual.itens.map((it,i) => {
     const total = (it.rmb||0) * (it.qtd||0);
     const mbCls = it.margemMedia !== null && it.margemMedia !== undefined ? mbClass(it.margemMedia) : 'badge-gray';
-    return `<tr style="border-bottom:1px solid var(--border-2);">
+    return `<tr data-ped-idx="${i}" style="border-bottom:1px solid var(--border-2);cursor:grab;">
+      <td style="padding:10px 8px;text-align:center;color:var(--muted-2);font-size:16px;cursor:grab;">⠿</td>
       <td style="padding:10px 12px;text-align:center;">
         <input type="checkbox" ${it.selecionado!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--accent);"
           onchange="_pedAtual.itens[${i}].selecionado=this.checked;pedRecalcTotais();pedAutoSave()"/>
@@ -2269,10 +2356,9 @@ function pedExportarPDF(){
     </div>
   </div>
 
-  <div class="info-grid">
+  <div class="info-grid" style="grid-template-columns:1fr 1fr;">
     <div class="info-card"><div class="info-label">Lote Vinculado</div><div class="info-value" style="font-size:14px;">${_pedAtual.loteNome}</div></div>
     <div class="info-card"><div class="info-label">Total RMB</div><div class="info-value">¥ ${fmtN(totalRmb)}</div></div>
-    <div class="info-card"><div class="info-label">Total USD</div><div class="info-value">$ ${fmtN(totalUsd)}</div></div>
   </div>
 
   <table>
@@ -2294,8 +2380,6 @@ function pedExportarPDF(){
   <div class="totais">
     <div class="total-item"><div class="total-label">Produtos</div><div class="total-value">${itensSel.length}</div></div>
     <div class="total-item"><div class="total-label">Total RMB</div><div class="total-value">¥ ${fmtN(totalRmb)}</div></div>
-    <div class="total-item"><div class="total-label">Cotação RMB/USD</div><div class="total-value">${cotRmb}</div></div>
-    <div class="total-item"><div class="total-label">Total USD</div><div class="total-value">$ ${fmtN(totalUsd)}</div></div>
   </div>
 
   ${_pedAtual.obs ? `<div class="obs"><div class="obs-title">Observações</div><div class="obs-text">${_pedAtual.obs}</div></div>` : ''}
@@ -2309,9 +2393,150 @@ function pedExportarPDF(){
   setTimeout(() => win.print(), 500);
 }
 
+
+// ══ MARCAS E RESPONSÁVEIS ══
+function getMarcas(){ 
+  const cfg = getConfig();
+  return cfg.marcas || ['Variall','Thametal','Boyu Cell','TibKids'];
+}
+function getResps(){ 
+  const cfg = getConfig();
+  return cfg.responsaveis || [];
+}
+function salvarMarcas(lista){ 
+  const cfg = getConfig(); cfg.marcas = lista; saveConfig(cfg); syncConfigUp(cfg);
+}
+function salvarResps(lista){ 
+  const cfg = getConfig(); cfg.responsaveis = lista; saveConfig(cfg); syncConfigUp(cfg);
+}
+
+function cfgAddMarca(){
+  const val = document.getElementById('cfg_nova_marca')?.value?.trim();
+  if(!val){ showToast('⚠️','Informe o nome da marca.'); return; }
+  const list = getMarcas();
+  if(list.includes(val)){ showToast('⚠️','Marca já existe.'); return; }
+  list.push(val); salvarMarcas(list);
+  document.getElementById('cfg_nova_marca').value = '';
+  cfgRenderMarcas(); cfgPopulateSelects();
+  showToast('✅','Marca adicionada!');
+}
+
+function cfgRemoverMarca(i){
+  const list = getMarcas(); list.splice(i,1); salvarMarcas(list);
+  cfgRenderMarcas(); cfgPopulateSelects();
+}
+
+function cfgAddResp(){
+  const val = document.getElementById('cfg_novo_resp')?.value?.trim();
+  if(!val){ showToast('⚠️','Informe o nome.'); return; }
+  const list = getResps();
+  if(list.includes(val)){ showToast('⚠️','Responsável já existe.'); return; }
+  list.push(val); salvarResps(list);
+  document.getElementById('cfg_novo_resp').value = '';
+  cfgRenderResps(); cfgPopulateSelects();
+  showToast('✅','Responsável adicionado!');
+}
+
+function cfgRemoverResp(i){
+  const list = getResps(); list.splice(i,1); salvarResps(list);
+  cfgRenderResps(); cfgPopulateSelects();
+}
+
+function cfgRenderMarcas(){
+  const list = getMarcas();
+  const el = document.getElementById('cfg_marcas_list');
+  if(!el) return;
+  el.innerHTML = list.map((m,i) => `
+    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid rgba(91,95,199,.2);border-radius:20px;padding:5px 12px;">
+      <span style="font-size:13px;font-weight:600;color:var(--accent);">${m}</span>
+      <button onclick="cfgRemoverMarca(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+    </div>`).join('');
+}
+
+function cfgRenderResps(){
+  const list = getResps();
+  const el = document.getElementById('cfg_resps_list');
+  if(!el) return;
+  el.innerHTML = list.length ? list.map((r,i) => `
+    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;">
+      <span style="font-size:13px;font-weight:600;color:var(--ink-3);">👤 ${r}</span>
+      <button onclick="cfgRemoverResp(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+    </div>`).join('') : '<span style="font-size:13px;color:var(--muted);">Nenhum responsável cadastrado.</span>';
+}
+
+function cfgPopulateSelects(){
+  const marcas = getMarcas();
+  const resps  = getResps();
+  // Popular selects de novo lote
+  ['nl_marca','el_marca','lotes_filtro_marca','ped_filtro_marca'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const isFilter = id.includes('filtro');
+    const curr = el.value;
+    el.innerHTML = `<option value="">${isFilter?'Todas as marcas':'Selecionar...'}</option>` +
+      marcas.map(m => `<option value="${m}" ${curr===m?'selected':''}>${m}</option>`).join('');
+  });
+  ['nl_resp','el_resp','lotes_filtro_resp','ped_filtro_resp'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const isFilter = id.includes('filtro');
+    const curr = el.value;
+    el.innerHTML = `<option value="">${isFilter?'Todos os responsáveis':'Selecionar...'}</option>` +
+      resps.map(r => `<option value="${r}" ${curr===r?'selected':''}>${r}</option>`).join('');
+  });
+}
+
+// ── Nome editável no pedido ──
+function pedSalvarNome(el){
+  if(!_pedAtual) return;
+  const novo = el.textContent.trim();
+  if(!novo){ el.textContent = _pedAtual.nome; return; }
+  _pedAtual.nome = novo;
+  document.getElementById('ped_editor_nome_mob').textContent = novo;
+  pedAutoSave();
+}
+
+// ── DnD na tabela de itens do pedido ──
+let _pedDragIdx = null;
+
+function initPedDragDrop(){
+  const rows = document.querySelectorAll('#ped_itens_tbody tr[data-ped-idx]');
+  rows.forEach(row => {
+    row.setAttribute('draggable','true');
+    row.addEventListener('dragstart', e => {
+      _pedDragIdx = parseInt(row.dataset.pedIdx);
+      row.style.opacity = '.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      document.querySelectorAll('#ped_itens_tbody tr').forEach(r => r.style.borderTop = '');
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.querySelectorAll('#ped_itens_tbody tr').forEach(r => r.style.borderTop = '');
+      row.style.borderTop = '2px solid var(--accent)';
+    });
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      const toIdx = parseInt(row.dataset.pedIdx);
+      if(_pedDragIdx === null || _pedDragIdx === toIdx) return;
+      const arr = _pedAtual.itens;
+      const [moved] = arr.splice(_pedDragIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      _pedAtual.itens = arr;
+      pedRenderItens();
+      pedAutoSave();
+      _pedDragIdx = null;
+    });
+  });
+}
+
+
 // ── INIT ──
 renderLotes();
 renderConfig();
+cfgPopulateSelects();
 syncInicial();
 </script>
 </body>
