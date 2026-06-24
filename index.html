@@ -1070,16 +1070,29 @@ async function syncConfigDown(){
 
 async function syncPedidoUp(ped){
   try{
-    await sbUpsert('quotes_pedidos',{
-      id:ped.id,nome:ped.nome,lote_id:ped.loteId,lote_nome:ped.loteNome,
-      marca:ped.marca||'',responsavel:ped.responsavel||'',
-      cot_rmb:ped.cotRmb,cot_usd:ped.cotUsd||0,
-      status:ped.status,obs:ped.obs||'',
-      data_envio:ped.dataEnvio||null,
-      itens:ped.itens,
-      updated_at:new Date().toISOString()
+    const payload = {
+      id: parseInt(ped.id)||ped.id,
+      nome: ped.nome,
+      lote_id: parseInt(ped.loteId)||null,
+      lote_nome: ped.loteNome||'',
+      marca: ped.marca||'',
+      responsavel: ped.responsavel||'',
+      cot_rmb: parseFloat(ped.cotRmb)||7,
+      cot_usd: parseFloat(ped.cotUsd)||0,
+      status: ped.status||'rascunho',
+      obs: ped.obs||'',
+      data_envio: ped.dataEnvio||null,
+      itens: ped.itens||[],
+      created_at: ped.createdAt||new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    const res = await sbFetch('quotes_pedidos', {
+      method:'POST',
+      prefer:'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify(payload)
     });
-  }catch(e){console.error('syncPedidoUp:',e);}
+    if(res === null) console.log('syncPedidoUp: salvo ok');
+  }catch(e){console.error('syncPedidoUp error:',e);}
 }
 
 async function syncPedidosDown(){
