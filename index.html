@@ -435,14 +435,21 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
 
 <!-- ════ PÁGINA: EDITOR DO LOTE ════ -->
 <div class="page" id="page-editor">
-  <div class="mobile-topbar">
-    <button class="mob-back" onclick="voltarLista()">←</button>
-    <div style="flex:1;min-width:0;">
-      <div class="mob-title" id="editor_nome_mob">—</div>
-      <div class="mob-sub" id="editor_info_mob" onclick="abrirSheetEditarLote()" style="cursor:pointer;">— <span style="color:var(--accent);font-weight:700;">✏️</span></div>
+  <div class="mobile-topbar" style="flex-direction:column;height:auto;padding:8px 12px;gap:6px;">
+    <div style="display:flex;align-items:center;gap:8px;width:100%;">
+      <button class="mob-back" onclick="voltarLista()">←</button>
+      <div style="flex:1;min-width:0;">
+        <div class="mob-title" id="editor_nome_mob" style="font-size:14px;">—</div>
+        <div class="mob-sub" id="editor_info_mob" onclick="abrirSheetEditarLote()" style="cursor:pointer;font-size:10px;">— <span style="color:var(--accent);">✏️</span></div>
+      </div>
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="toggleCadastroRapido()" style="margin-right:4px;">⚡</button>
-    <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()">✏️</button>
+    <div style="display:flex;gap:6px;width:100%;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;">
+      <button class="btn btn-secondary btn-sm" onclick="abrirSheetEditarLote()" style="white-space:nowrap;font-size:11px;padding:6px 10px;">✏️ Editar</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleCadastroRapido()" style="white-space:nowrap;font-size:11px;padding:6px 10px;">⚡ Rápido</button>
+      <button class="btn btn-secondary btn-sm" onclick="verResumo()" style="white-space:nowrap;font-size:11px;padding:6px 10px;">📊 Resumo</button>
+      <button class="btn btn-secondary btn-sm" onclick="abrirGerarPedido()" style="white-space:nowrap;font-size:11px;padding:6px 10px;">🛒 Pedido</button>
+      <button class="btn btn-dark btn-sm" onclick="abrirSheetProduto()" style="white-space:nowrap;font-size:11px;padding:6px 10px;">＋ Produto</button>
+    </div>
   </div>
   <div class="desktop-topbar">
     <div>
@@ -596,6 +603,8 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
   </div>
   <div class="page-content">
     <div class="content">
+      <!-- Mini dashboard pedidos -->
+      <div id="ped_dashboard" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <div class="search-wrap" style="flex:1;min-width:200px;"><input type="text" id="ped_search" placeholder="Pesquisar pedido..." oninput="renderPedidosLista()"/></div>
         <select id="ped_filtro_status" onchange="renderPedidosLista()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:white;">
@@ -677,7 +686,10 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
       <div class="card" style="overflow:hidden;">
         <div class="card-header">
           <div class="card-header-title">Produtos do Pedido</div>
-          <div style="font-size:11px;color:var(--muted);">Demarque para remover do pedido</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="font-size:11px;color:var(--muted);">Demarque para remover</div>
+            <button class="btn btn-secondary btn-sm" onclick="pedAbrirAddProduto()" style="font-size:11px;padding:5px 10px;">＋ Add do Lote</button>
+          </div>
         </div>
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;">
@@ -690,6 +702,7 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
                 <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">¥ Unit.</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Qtd</th>
                 <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Total ¥</th>
+                <th style="padding:10px 8px;width:40px;"></th>
               </tr>
             </thead>
             <tbody id="ped_itens_tbody"></tbody>
@@ -1055,10 +1068,43 @@ async function syncConfigDown(){
   }catch(e){console.error('syncConfigDown:',e);}
 }
 
+async function syncPedidoUp(ped){
+  try{
+    await sbUpsert('quotes_pedidos',{
+      id:ped.id,nome:ped.nome,lote_id:ped.loteId,lote_nome:ped.loteNome,
+      marca:ped.marca||'',responsavel:ped.responsavel||'',
+      cot_rmb:ped.cotRmb,cot_usd:ped.cotUsd||0,
+      status:ped.status,obs:ped.obs||'',
+      data_envio:ped.dataEnvio||null,
+      itens:ped.itens,
+      updated_at:new Date().toISOString()
+    });
+  }catch(e){console.error('syncPedidoUp:',e);}
+}
+
+async function syncPedidosDown(){
+  try{
+    const peds=await sbGet('quotes_pedidos','order=created_at.desc');
+    if(!peds) return;
+    savePedidos(peds.map(p=>({
+      id:p.id,nome:p.nome,loteId:p.lote_id,loteNome:p.lote_nome,
+      marca:p.marca||'',responsavel:p.responsavel||'',
+      cotRmb:parseFloat(p.cot_rmb),cotUsd:parseFloat(p.cot_usd||0),
+      status:p.status,obs:p.obs||'',dataEnvio:p.data_envio,
+      itens:p.itens||[],createdAt:p.created_at
+    })));
+  }catch(e){console.error('syncPedidosDown:',e);}
+}
+
+async function syncPedidoDelete(id){
+  try{await sbDelete('quotes_pedidos','id=eq.'+id);}
+  catch(e){console.error('syncPedidoDelete:',e);}
+}
+
 async function syncInicial(){
   setSyncing(true);
-  await Promise.all([syncLoteDown(),syncNCMsDown(),syncConfigDown()]);
-  renderLotes();renderNCMs();renderConfig();
+  await Promise.all([syncLoteDown(),syncNCMsDown(),syncConfigDown(),syncPedidosDown()]);
+  renderLotes();renderNCMs();renderConfig();cfgPopulateSelects();
   setSyncing(false);
   showToast('✅','Sincronizado!');
 }
@@ -1120,7 +1166,10 @@ function getLotes(){return JSON.parse(localStorage.getItem('qt_lotes')||'[]');}
 function saveLotes(d){localStorage.setItem('qt_lotes',JSON.stringify(d));}
 function getNCMs(){return JSON.parse(localStorage.getItem('qt_ncms')||'[]');}
 function saveNCMs(d){localStorage.setItem('qt_ncms',JSON.stringify(d));}
-function getConfig(){return JSON.parse(localStorage.getItem('qt_config')||'{"rmb_usd":7,"usd_brl":5.80,"cenario":"medio","historico":[]}');}
+function getConfig(){
+  const d = JSON.parse(localStorage.getItem('qt_config')||'{}');
+  return { rmb_usd:7, usd_brl:5.80, cenario:'medio', historico:[], marcas:['Variall','Thametal','Boyu Cell','TibKids'], responsaveis:[], ...d };
+}
 function saveConfig(d){localStorage.setItem('qt_config',JSON.stringify(d));}
 
 // ══ CONSTANTES ══
@@ -1290,6 +1339,7 @@ function salvarLote(){
   if(idx>=0) all[idx]=_loteAtual; else all.unshift(_loteAtual);
   saveLotes(all);
   syncLoteUp(_loteAtual);
+  sincronizarPedidosDoLote(_loteAtual);
 }
 
 // Auto-save com debounce (espera 800ms após última alteração)
@@ -2102,6 +2152,7 @@ function confirmarGerarPedido(){
   const all = getPedidos();
   all.unshift(pedido);
   savePedidos(all);
+  syncPedidoUp(pedido);
   fecharSheet('sheet_gerar_pedido');
   showToast('✅', `Pedido "${nome}" criado!`);
   showPage('pedidos', document.querySelector('.sidebar-item[onclick*="pedidos"]'));
@@ -2125,6 +2176,7 @@ function renderPedidosLista(){
   else if(ordem==='data_asc') all=[...all].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
   else all=[...all].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   const list = all;
+  renderPedDashboard();
   const body = document.getElementById('ped_lista_body');
   if(!body) return;
 
@@ -2224,6 +2276,9 @@ function pedRenderItens(){
       <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:13px;color:var(--ink);">
         ${total > 0 ? '¥ '+fmtN(total) : '—'}
       </td>
+      <td style="padding:10px 8px;text-align:center;">
+        <button onclick="_pedAtual.itens.splice(${i},1);pedRenderItens();pedAutoSave();" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;">✕</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -2285,6 +2340,8 @@ function pedAutoSave(){
     const idx = all.findIndex(p => p.id === _pedAtual.id);
     if(idx >= 0) all[idx] = _pedAtual; else all.unshift(_pedAtual);
     savePedidos(all);
+    syncPedidoUp(_pedAtual);
+    renderPedDashboard();
   }, 600);
 }
 
@@ -2300,7 +2357,9 @@ function pedVerLote(){
 async function excluirPedido(idx){
   const ok = await showConfirm('Excluir Pedido','Deseja excluir este pedido permanentemente?','Excluir','Cancelar');
   if(!ok) return;
-  const all = getPedidos(); all.splice(idx,1); savePedidos(all); renderPedidosLista();
+  const all = getPedidos(); const pedId=all[idx]?.id; all.splice(idx,1); savePedidos(all);
+  if(pedId) syncPedidoDelete(pedId);
+  renderPedidosLista(); renderPedDashboard();
   showToast('🗑️','Pedido excluído.');
 }
 
@@ -2533,10 +2592,159 @@ function initPedDragDrop(){
 }
 
 
+
+// ══ PEDIDOS SYNC AO SALVAR ══
+// Atualizar pedidos vinculados quando lote muda
+function sincronizarPedidosDoLote(lote){
+  const peds = getPedidos();
+  let alterou = false;
+  peds.forEach((ped,pi) => {
+    if(ped.loteId !== lote.id) return;
+    // Atualizar cotação
+    peds[pi].cotRmb = lote.cotRmb;
+    peds[pi].cotUsd = lote.cotUsd;
+    // Atualizar RMB e margem dos itens
+    peds[pi].itens = ped.itens.map(it => {
+      const prodAtual = lote.produtos.find(p => p.id === it.prodId);
+      if(!prodAtual) return it;
+      const margens = MKT_KEYS.map(mk => prodAtual.mkt[mk]?.margem_p||0).filter(m=>m>0);
+      const margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
+      return { ...it, rmb: prodAtual.rmb, margemMedia };
+    });
+    alterou = true;
+  });
+  if(alterou){
+    savePedidos(peds);
+    peds.filter(p=>p.loteId===lote.id).forEach(p=>syncPedidoUp(p));
+  }
+}
+
+// ══ MINI DASHBOARD PEDIDOS ══
+function renderPedDashboard(){
+  const all = getPedidos();
+  const dash = document.getElementById('ped_dashboard');
+  if(!dash) return;
+  const grupos = {
+    rascunho:  { label:'⏳ Rascunho',  cls:'',       peds:[] },
+    enviado:   { label:'📤 Enviado',    cls:'accent', peds:[] },
+    confirmado:{ label:'✅ Confirmado', cls:'',       peds:[] },
+  };
+  all.forEach(p => {
+    const g = grupos[p.status];
+    if(g) g.peds.push(p);
+  });
+  dash.innerHTML = Object.entries(grupos).map(([key,g]) => {
+    const total = g.peds.reduce((s,p)=>s+p.itens.filter(it=>it.selecionado!==false).reduce((ss,it)=>ss+(it.rmb||0)*(it.qtd||0),0),0);
+    return `<div class="stat-card ${key==='enviado'?'accent':''}" style="cursor:pointer;" onclick="document.getElementById('ped_filtro_status').value='${key}';renderPedidosLista()">
+      <div class="stat-label">${g.label}</div>
+      <div class="stat-value" style="font-size:22px;">${g.peds.length}</div>
+      <div style="font-size:12px;font-weight:600;color:${key==='enviado'?'rgba(255,255,255,.6)':'var(--muted)'};margin-top:4px;">¥ ${fmtN(total)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══ ADD PRODUTO DO LOTE NO PEDIDO ══
+function pedAbrirAddProduto(){
+  if(!_pedAtual) return;
+  const all = getLotes();
+  const lote = all.find(l=>l.id===_pedAtual.loteId);
+  if(!lote||!lote.produtos.length){ showToast('⚠️','Lote vinculado não encontrado.'); return; }
+
+  const produtosNoLote = lote.produtos;
+  const idsNoPedido = new Set(_pedAtual.itens.map(it=>it.prodId));
+  const disponiveis = produtosNoLote.filter(p=>!idsNoPedido.has(p.id));
+
+  if(!disponiveis.length){ showToast('ℹ️','Todos os produtos do lote já estão no pedido.'); return; }
+
+  // Criar modal simples
+  const overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(10,10,15,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:24px;';
+  overlay.innerHTML=`<div style="background:white;border-radius:16px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:16px;font-weight:800;">＋ Adicionar do Lote</div>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="background:var(--surface-3);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;">×</button>
+    </div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:8px;">
+      ${disponiveis.map((p,i)=>{
+        const margens=MKT_KEYS.map(mk=>p.mkt[mk]?.margem_p||0).filter(m=>m>0);
+        const mm=margens.length?margens.reduce((a,b)=>a+b,0)/margens.length:null;
+        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);">
+          <input type="checkbox" id="add_prod_${i}" style="width:16px;height:16px;accent-color:var(--accent);" checked/>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:13px;">${p.nome}</div>
+            <div style="font-size:11px;color:var(--muted);">${p.sku||''} · ¥${fmtN(p.rmb)}</div>
+          </div>
+          ${mm!==null?`<span class="badge ${mbClass(mm)}">${fmtN(mm)}%</span>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="padding:14px;border-top:1px solid var(--border-2);">
+      <button class="btn btn-primary btn-block" onclick="
+        const disp=${JSON.stringify(disponiveis.map(p=>({id:p.id,nome:p.nome,sku:p.sku,rmb:p.rmb,mkt:p.mkt})))};
+        disp.forEach((p,i)=>{
+          if(!document.getElementById('add_prod_'+i)?.checked) return;
+          const margens=Object.values(p.mkt).map(m=>m.margem_p||0).filter(m=>m>0);
+          const mm=margens.length?margens.reduce((a,b)=>a+b,0)/margens.length:null;
+          _pedAtual.itens.push({prodId:p.id,nome:p.nome,sku:p.sku||'',rmb:p.rmb,qtd:0,selecionado:true,margemMedia:mm});
+        });
+        pedRenderItens();pedAutoSave();
+        this.closest('div[style*=fixed]').remove();
+        showToast('✅','Produtos adicionados!');
+      ">Adicionar Selecionados →</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ══ FIX DRAG AND DROP PEDIDOS ══
+// Remover e recriar listeners para evitar duplicação
+function initPedDragDrop(){
+  const rows = document.querySelectorAll('#ped_itens_tbody tr[data-ped-idx]');
+  rows.forEach(row => {
+    // Clonar para remover listeners antigos
+    const newRow = row.cloneNode(true);
+    row.parentNode.replaceChild(newRow, row);
+  });
+
+  // Re-selecionar após clonar
+  document.querySelectorAll('#ped_itens_tbody tr[data-ped-idx]').forEach(row => {
+    row.setAttribute('draggable','true');
+    row.addEventListener('dragstart', e => {
+      _pedDragIdx = parseInt(row.dataset.pedIdx);
+      row.style.opacity = '.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      document.querySelectorAll('#ped_itens_tbody tr').forEach(r => r.style.borderTop = '');
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.querySelectorAll('#ped_itens_tbody tr').forEach(r => r.style.borderTop = '');
+      row.style.borderTop = '2px solid var(--accent)';
+    });
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      const toIdx = parseInt(row.dataset.pedIdx);
+      if(_pedDragIdx === null || _pedDragIdx === toIdx) return;
+      const arr = _pedAtual.itens;
+      const [moved] = arr.splice(_pedDragIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      _pedAtual.itens = arr;
+      _pedDragIdx = null;
+      pedRenderItens();
+      pedAutoSave();
+    });
+  });
+}
+
+// ══ FIX RESPONSÁVEIS — getConfig com fallback correto ══
+
 // ── INIT ──
 renderLotes();
 renderConfig();
 cfgPopulateSelects();
+renderPedDashboard();
 syncInicial();
 </script>
 </body>
