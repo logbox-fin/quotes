@@ -2253,7 +2253,7 @@ function renderPedidoEditor(){
 
   pedRecalcTotais();
   pedRenderItens();
-  setTimeout(initPedDragDrop, 50);
+  initPedDragDrop();
 }
 
 function pedRenderItens(){
@@ -2263,7 +2263,7 @@ function pedRenderItens(){
   tbody.innerHTML = _pedAtual.itens.map((it,i) => {
     const total = (it.rmb||0) * (it.qtd||0);
     const mbCls = it.margemMedia !== null && it.margemMedia !== undefined ? mbClass(it.margemMedia) : 'badge-gray';
-    return `<tr data-ped-idx="${i}" style="border-bottom:1px solid var(--border-2);cursor:grab;">
+    return `<tr data-ped-idx="${i}" draggable="true" style="border-bottom:1px solid var(--border-2);cursor:grab;">
       <td style="padding:10px 8px;text-align:center;color:var(--muted-2);font-size:16px;cursor:grab;">⠿</td>
       <td style="padding:10px 12px;text-align:center;">
         <input type="checkbox" ${it.selecionado!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--accent);"
@@ -2571,36 +2571,54 @@ function pedSalvarNome(el){
 // ── DnD na tabela de itens do pedido ──
 let _pedDragIdx = null;
 
+// DnD via delegação de eventos no tbody — funciona mesmo após re-renders
 function initPedDragDrop(){
-  const rows = document.querySelectorAll('#ped_itens_tbody tr[data-ped-idx]');
-  rows.forEach(row => {
-    row.setAttribute('draggable','true');
-    row.addEventListener('dragstart', e => {
-      _pedDragIdx = parseInt(row.dataset.pedIdx);
-      row.style.opacity = '.4';
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    row.addEventListener('dragend', () => {
-      row.style.opacity = '1';
-      document.querySelectorAll('#ped_itens_tbody tr').forEach(r => r.style.borderTop = '');
-    });
-    row.addEventListener('dragover', e => {
-      e.preventDefault();
-      document.querySelectorAll('#ped_itens_tbody tr').forEach(r => r.style.borderTop = '');
-      row.style.borderTop = '2px solid var(--accent)';
-    });
-    row.addEventListener('drop', e => {
-      e.preventDefault();
-      const toIdx = parseInt(row.dataset.pedIdx);
-      if(_pedDragIdx === null || _pedDragIdx === toIdx) return;
-      const arr = _pedAtual.itens;
-      const [moved] = arr.splice(_pedDragIdx, 1);
-      arr.splice(toIdx, 0, moved);
-      _pedAtual.itens = arr;
-      pedRenderItens();
-      pedAutoSave();
-      _pedDragIdx = null;
-    });
+  const tbody = document.getElementById('ped_itens_tbody');
+  if(!tbody || tbody._dndReady) return;
+  tbody._dndReady = true;
+
+  tbody.addEventListener('dragstart', e => {
+    const row = e.target.closest('tr[data-ped-idx]');
+    if(!row) return;
+    _pedDragIdx = parseInt(row.dataset.pedIdx);
+    row.style.opacity = '.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  tbody.addEventListener('dragend', e => {
+    const row = e.target.closest('tr[data-ped-idx]');
+    if(row) row.style.opacity = '1';
+    tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
+    // Não resetar _pedDragIdx aqui — o drop pode ainda não ter disparado
+  });
+
+  tbody.addEventListener('dragover', e => {
+    e.preventDefault();
+    const row = e.target.closest('tr[data-ped-idx]');
+    tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
+    if(row) row.style.borderTop = '2px solid var(--accent)';
+  });
+
+  tbody.addEventListener('dragleave', e => {
+    if(!tbody.contains(e.relatedTarget)){
+      tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
+    }
+  });
+
+  tbody.addEventListener('drop', e => {
+    e.preventDefault();
+    tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
+    const row = e.target.closest('tr[data-ped-idx]');
+    if(!row) return;
+    const toIdx = parseInt(row.dataset.pedIdx);
+    if(_pedDragIdx === null || _pedDragIdx === toIdx){ _pedDragIdx = null; return; }
+    const arr = _pedAtual.itens;
+    const [moved] = arr.splice(_pedDragIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    _pedAtual.itens = arr;
+    _pedDragIdx = null;
+    pedRenderItens();
+    pedAutoSave();
   });
 }
 
