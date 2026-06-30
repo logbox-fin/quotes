@@ -1045,7 +1045,7 @@ async function syncLoteDown(){
     const lotes=await sbGet('quotes_lotes','order=created_at.desc');
     if(!lotes) return;
     const prods=await sbGet('quotes_produtos','order=created_at.asc');
-    saveLotes(lotes.map(l=>({id:l.id,nome:l.nome,cenario:l.cenario,cotRmb:parseFloat(l.cot_rmb),cotUsd:parseFloat(l.cot_usd),status:l.status,createdAt:l.created_at,produtos:(prods||[]).filter(p=>p.lote_id===l.id).map(p=>({id:p.id,nome:p.nome,sku:p.sku,ncm:p.ncm,categ:p.categ,rmb:parseFloat(p.rmb),ii_p:parseFloat(p.ii_p),ipi_p:parseFloat(p.ipi_p),cofins_p:parseFloat(p.cofins_p),icms_p:parseFloat(p.icms_p),vmle:parseFloat(p.vmle),vmld:parseFloat(p.vmld),fp:parseFloat(p.fp),afrmm:parseFloat(p.afrmm),cmv:parseFloat(p.cmv),mkt:p.mkt}))})));
+    saveLotes(lotes.map(l=>({id:parseInt(l.id)||l.id,nome:l.nome,cenario:l.cenario,cotRmb:parseFloat(l.cot_rmb),cotUsd:parseFloat(l.cot_usd),status:l.status,createdAt:l.created_at,marca:l.marca||'',responsavel:l.responsavel||'',produtos:(prods||[]).filter(p=>String(p.lote_id)===String(l.id)).map(p=>({id:parseInt(p.id)||p.id,nome:p.nome,sku:p.sku,ncm:p.ncm,categ:p.categ,rmb:parseFloat(p.rmb),ii_p:parseFloat(p.ii_p),ipi_p:parseFloat(p.ipi_p),cofins_p:parseFloat(p.cofins_p),icms_p:parseFloat(p.icms_p),vmle:parseFloat(p.vmle),vmld:parseFloat(p.vmld),fp:parseFloat(p.fp),afrmm:parseFloat(p.afrmm),cmv:parseFloat(p.cmv),mkt:p.mkt,img:p.img||''}))})));
   }catch(e){console.error('syncLoteDown:',e);}
 }
 
@@ -1131,7 +1131,7 @@ async function syncPedidosDown(){
     const peds=await sbGet('quotes_pedidos','order=created_at.desc');
     if(!peds) return;
     savePedidos(peds.map(p=>({
-      id:p.id,nome:p.nome,loteId:p.lote_id,loteNome:p.lote_nome,
+      id:parseInt(p.id)||p.id,nome:p.nome,loteId:parseInt(p.lote_id)||p.lote_id,loteNome:p.lote_nome,
       marca:p.marca||'',responsavel:p.responsavel||'',
       cotRmb:parseFloat(p.cot_rmb),cotUsd:parseFloat(p.cot_usd||0),
       status:p.status,obs:p.obs||'',dataEnvio:p.data_envio,
@@ -1501,7 +1501,7 @@ function salvarEdicaoLote(){
   if(nome !== nomeAntigo){
     const peds = getPedidos();
     let pedAlterou = false;
-    peds.forEach((p,i) => { if(p.loteId===_loteAtual.id){ peds[i].loteNome=nome; pedAlterou=true; } });
+    peds.forEach((p,i) => { if(String(p.loteId)===String(_loteAtual.id)){ peds[i].loteNome=nome; pedAlterou=true; } });
     if(pedAlterou){ savePedidos(peds); peds.filter(p=>p.loteId===_loteAtual.id).forEach(p=>syncPedidoUp(p)); }
   }
   if(mudou&&_loteAtual.produtos.length){
@@ -2087,7 +2087,7 @@ function salvarCadastroRapido(){
     MKT_KEYS.forEach(mk => {
       mkt[mk] = { preco:0, frete:MKT_DEF[mk]?.f||0, tarifa:MKT_DEF[mk]?.t||0, rebate:0, ads:0, margem_rs:0, margem_p:0 };
     });
-    _loteAtual.produtos.push({ id:Date.now()+Math.random(), nome:l.nome, sku:l.sku||'', ncm:l.ncm||'', categ, rmb, ii_p, ipi_p, cofins_p, icms_p, ...c, mkt });
+    _loteAtual.produtos.push({ id:Date.now()+Math.floor(Math.random()*1000), nome:l.nome, sku:l.sku||'', ncm:l.ncm||'', categ, rmb, ii_p, ipi_p, cofins_p, icms_p, ...c, mkt });
   });
 
   toggleCadastroRapido();
@@ -2358,7 +2358,7 @@ function pedSincronizarCotacao(){
   _pedAtual.cotRmb = novaCot;
   // Atualizar cotação no lote vinculado
   const all = getLotes();
-  const loteIdx = all.findIndex(l => l.id === _pedAtual.loteId);
+  const loteIdx = all.findIndex(l => String(l.id) === String(_pedAtual.loteId));
   if(loteIdx >= 0){
     all[loteIdx].cotRmb = novaCot;
     // Recalcular CMV de todos os produtos do lote
@@ -2405,7 +2405,7 @@ function pedAutoSave(){
 function pedVerLote(){
   if(!_pedAtual) return;
   const all = getLotes();
-  const loteIdx = all.findIndex(l => l.id === _pedAtual.loteId);
+  const loteIdx = all.findIndex(l => String(l.id) === String(_pedAtual.loteId));
   if(loteIdx < 0){ showToast('⚠️','Lote não encontrado.'); return; }
   _loteAtual = JSON.parse(JSON.stringify(all[loteIdx]));
   abrirEditor();
@@ -2674,14 +2674,14 @@ function sincronizarPedidosDoLote(lote){
   const peds = getPedidos();
   let alterou = false;
   peds.forEach((ped,pi) => {
-    if(ped.loteId !== lote.id) return;
+    if(String(ped.loteId) !== String(lote.id)) return;
     // Atualizar cotação e nome do lote
     peds[pi].cotRmb = lote.cotRmb;
     peds[pi].cotUsd = lote.cotUsd;
     peds[pi].loteNome = lote.nome;
     // Atualizar RMB, margem e nome dos itens
     peds[pi].itens = ped.itens.map(it => {
-      const prodAtual = lote.produtos.find(p => p.id === it.prodId);
+      const prodAtual = lote.produtos.find(p => String(p.id) === String(it.prodId));
       if(!prodAtual) return it;
       // Recalcular margem média com dados atuais de marketplace
       const margens = MKT_KEYS.map(mk => {
