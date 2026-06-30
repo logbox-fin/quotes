@@ -815,10 +815,13 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
       </div>
       <div class="section-title">NCM e Alíquotas</div>
       <div class="field">
-        <label>NCM</label>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="mp_ncm" placeholder="0000.00.00" oninput="formatNCM(this)" style="flex:1;"/>
-          <button class="btn btn-secondary btn-sm" onclick="buscarNCM()">Buscar</button>
+        <label>NCM <span style="font-size:10px;color:var(--muted-2);">(busque por número ou nome)</span></label>
+        <div style="position:relative;">
+          <input type="text" id="mp_ncm" placeholder="Digite NCM ou nome do produto..." 
+            oninput="ncmBuscarSugestoes(this.value)"
+            onblur="setTimeout(()=>document.getElementById('ncm_sugestoes').style.display='none',200)"
+            style="width:100%;"/>
+          <div id="ncm_sugestoes" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--accent);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:100;max-height:200px;overflow-y:auto;"></div>
         </div>
       </div>
       <div id="ncm_found_box" style="display:none;" class="ncm-option-box">
@@ -843,6 +846,17 @@ body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,system-ui,
           <button class="btn btn-success btn-sm" onclick="salvarNovoNCM()">✅ Salvar</button>
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('ncm_save_box').style.display='none'">Não</button>
         </div>
+      </div>
+      <div class="section-title">Imagem do Produto</div>
+      <div style="border:2px dashed var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;cursor:pointer;position:relative;"
+        onpaste="prodImagemPaste(event)" tabindex="0"
+        onclick="document.getElementById('mp_img_file').click()">
+        <input type="file" id="mp_img_file" accept="image/*" style="display:none;" onchange="prodImagemUpload(event)"/>
+        <input type="hidden" id="mp_img_data"/>
+        <img id="mp_img_preview" style="display:none;max-width:100%;max-height:120px;border-radius:6px;margin-bottom:8px;" src=""/>
+        <div id="mp_img_label" style="font-size:12px;color:var(--muted);font-weight:600;">Cole (Ctrl+V) ou clique para fazer upload</div>
+        <div style="font-size:11px;color:var(--muted-2);margin-top:4px;">JPG, PNG · Aparece no PDF</div>
+        <button onclick="event.stopPropagation();prodRemoverImagem()" id="mp_img_remove" style="position:absolute;top:8px;right:8px;background:var(--red-bg);color:var(--red);border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">×</button>
       </div>
       <div class="section-title">Custo de Compra</div>
       <div class="field"><label>Valor RMB ¥ *</label><input type="number" id="mp_rmb" inputmode="decimal" placeholder="0,00" step="0.01"/></div>
@@ -1055,16 +1069,33 @@ async function syncNCMDelete(ncm){
 
 async function syncConfigUp(cfg){
   try{
+    const payload = {
+      rmb_usd: cfg.rmb_usd, usd_brl: cfg.usd_brl,
+      cenario: cfg.cenario, historico: cfg.historico||[],
+      marcas: cfg.marcas||[], responsaveis: cfg.responsaveis||[],
+      updated_at: new Date().toISOString()
+    };
     const rows=await sbGet('quotes_config','limit=1');
-    if(rows&&rows.length){await sbPatch('quotes_config','id=eq.'+rows[0].id,{rmb_usd:cfg.rmb_usd,usd_brl:cfg.usd_brl,cenario:cfg.cenario,historico:cfg.historico,updated_at:new Date().toISOString()});}
-    else{await sbUpsert('quotes_config',{rmb_usd:cfg.rmb_usd,usd_brl:cfg.usd_brl,cenario:cfg.cenario,historico:cfg.historico});}
+    if(rows&&rows.length){ await sbPatch('quotes_config','id=eq.'+rows[0].id, payload); }
+    else{ await sbUpsert('quotes_config', payload); }
   }catch(e){console.error('syncConfigUp:',e);}
 }
 
 async function syncConfigDown(){
   try{
     const rows=await sbGet('quotes_config','limit=1');
-    if(rows&&rows.length){const r=rows[0];saveConfig({rmb_usd:parseFloat(r.rmb_usd),usd_brl:parseFloat(r.usd_brl),cenario:r.cenario,historico:r.historico||[]});}
+    if(rows&&rows.length){
+      const r=rows[0];
+      const local = getConfig();
+      saveConfig({
+        rmb_usd: parseFloat(r.rmb_usd)||local.rmb_usd,
+        usd_brl: parseFloat(r.usd_brl)||local.usd_brl,
+        cenario: r.cenario||local.cenario,
+        historico: r.historico||local.historico||[],
+        marcas: r.marcas||local.marcas||['Variall','Thametal','Boyu Cell','TibKids'],
+        responsaveis: r.responsaveis||local.responsaveis||[]
+      });
+    }
   }catch(e){console.error('syncConfigDown:',e);}
 }
 
@@ -1462,9 +1493,17 @@ function salvarEdicaoLote(){
   const novoRmb=parseFloat(document.getElementById('el_rmb_usd').value)||7;
   const novoUsd=parseFloat(document.getElementById('el_usd_brl').value)||5.80;
   const mudou=novoCen!==_loteAtual.cenario||novoRmb!==_loteAtual.cotRmb||novoUsd!==_loteAtual.cotUsd;
+  const nomeAntigo = _loteAtual.nome;
   _loteAtual.nome=nome;_loteAtual.cenario=novoCen;_loteAtual.cotRmb=novoRmb;_loteAtual.cotUsd=novoUsd;
   _loteAtual.marca=gs('el_marca')||_loteAtual.marca||'';
   _loteAtual.responsavel=gs('el_resp')||_loteAtual.responsavel||'';
+  // Atualizar nome do lote nos pedidos vinculados
+  if(nome !== nomeAntigo){
+    const peds = getPedidos();
+    let pedAlterou = false;
+    peds.forEach((p,i) => { if(p.loteId===_loteAtual.id){ peds[i].loteNome=nome; pedAlterou=true; } });
+    if(pedAlterou){ savePedidos(peds); peds.filter(p=>p.loteId===_loteAtual.id).forEach(p=>syncPedidoUp(p)); }
+  }
   if(mudou&&_loteAtual.produtos.length){
     _loteAtual.produtos.forEach((p,i)=>{
       const c=calcCMV(p.rmb,p.categ,novoCen,novoRmb,novoUsd,p.ii_p,p.ipi_p,p.cofins_p,p.icms_p);
@@ -1627,7 +1666,7 @@ function salvarProduto(){
     const m=calcMargem(c.cmv,ipi_p,preco,frete,tarifa,rebate,ads);
     mkt[mk]={preco,frete,tarifa,rebate,ads,margem_rs:m?.margem_rs||0,margem_p:m?.margem_p||0};
   });
-  const produto={id:Date.now(),nome,sku:document.getElementById('mp_sku')?.value||'',ncm:document.getElementById('mp_ncm')?.value||'',categ,rmb,ii_p,ipi_p,cofins_p,icms_p,...c,mkt};
+  const produto={id:Date.now(),nome,sku:document.getElementById('mp_sku')?.value||'',ncm:document.getElementById('mp_ncm')?.value||'',categ,rmb,ii_p,ipi_p,cofins_p,icms_p,...c,mkt,img:imgData||''};
   if(_editProdIdx!==null){_loteAtual.produtos[_editProdIdx]=produto;showToast('✅','Produto atualizado!');}
   else{_loteAtual.produtos.push(produto);showToast('✅',`"${nome}" adicionado!`);}
   fecharSheet('sheet_produto');
@@ -2038,7 +2077,8 @@ function salvarCadastroRapido(){
     const ipi_p    = parseFloat(l.ipi_p) || 0;
     const cofins_p = parseFloat(l.cofins_p) || 9.65;
     const icms_p   = parseFloat(l.icms_p) || 18;
-    const c = calcCMV(rmb, categ, _loteAtual.cenario, _loteAtual.cotRmb, _loteAtual.cotUsd, ii_p, ipi_p, cofins_p, icms_p);
+    const imgData = document.getElementById('mp_img_data')?.value||'';
+  const c = calcCMV(rmb, categ, _loteAtual.cenario, _loteAtual.cotRmb, _loteAtual.cotUsd, ii_p, ipi_p, cofins_p, icms_p);
     const mkt = {};
     MKT_KEYS.forEach(mk => {
       mkt[mk] = { preco:0, frete:MKT_DEF[mk]?.f||0, tarifa:MKT_DEF[mk]?.t||0, rebate:0, ads:0, margem_rs:0, margem_p:0 };
@@ -2631,22 +2671,34 @@ function sincronizarPedidosDoLote(lote){
   let alterou = false;
   peds.forEach((ped,pi) => {
     if(ped.loteId !== lote.id) return;
-    // Atualizar cotação
+    // Atualizar cotação e nome do lote
     peds[pi].cotRmb = lote.cotRmb;
     peds[pi].cotUsd = lote.cotUsd;
-    // Atualizar RMB e margem dos itens
+    peds[pi].loteNome = lote.nome;
+    // Atualizar RMB, margem e nome dos itens
     peds[pi].itens = ped.itens.map(it => {
       const prodAtual = lote.produtos.find(p => p.id === it.prodId);
       if(!prodAtual) return it;
-      const margens = MKT_KEYS.map(mk => prodAtual.mkt[mk]?.margem_p||0).filter(m=>m>0);
+      // Recalcular margem média com dados atuais de marketplace
+      const margens = MKT_KEYS.map(mk => {
+        const m = prodAtual.mkt[mk];
+        if(!m?.preco) return null;
+        const mg = calcMargem(prodAtual.cmv, prodAtual.ipi_p, m.preco, m.frete, m.tarifa, m.rebate, m.ads);
+        return mg?.margem_p||0;
+      }).filter(m => m !== null && m > 0);
       const margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
-      return { ...it, rmb: prodAtual.rmb, margemMedia };
+      return { ...it, rmb: prodAtual.rmb, nome: prodAtual.nome, sku: prodAtual.sku||it.sku, margemMedia };
     });
     alterou = true;
   });
   if(alterou){
     savePedidos(peds);
     peds.filter(p=>p.loteId===lote.id).forEach(p=>syncPedidoUp(p));
+    // Se pedido atual está aberto e é do mesmo lote, re-renderizar
+    if(_pedAtual && _pedAtual.loteId === lote.id){
+      const updated = peds.find(p=>p.id===_pedAtual.id);
+      if(updated){ _pedAtual = JSON.parse(JSON.stringify(updated)); pedRenderItens(); pedRecalcTotais(); }
+    }
   }
 }
 
@@ -2770,6 +2822,82 @@ function initPedDragDrop(){
 }
 
 // ══ FIX RESPONSÁVEIS — getConfig com fallback correto ══
+
+
+// ══ NCM BUSCA POR NOME OU NÚMERO ══
+function ncmBuscarSugestoes(val){
+  const q = val.trim().toLowerCase();
+  const box = document.getElementById('ncm_sugestoes');
+  if(!box) return;
+  if(!q){ box.style.display='none'; return; }
+  const list = getNCMs();
+  const results = list.filter(r =>
+    (r.ncm||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+    (r.desc||'').toLowerCase().includes(q)
+  ).slice(0,8);
+  if(!results.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = results.map(r => `
+    <div onclick="ncmSelecionarSugestao('${r.ncm}','${(r.desc||'').replace(/'/g,'\'')}',${r.ii||0},${r.ipi||0},${r.cofins||9.65},${r.icms||18})"
+      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border-2);transition:background .1s;"
+      onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background=''">
+      <div style="font-size:13px;font-weight:700;color:var(--ink);">${r.desc||'Sem descrição'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">NCM: ${r.ncm} · II:${r.ii}% IPI:${r.ipi}% COFINS:${r.cofins}% ICMS:${r.icms}%</div>
+    </div>
+  `).join('');
+}
+
+function ncmSelecionarSugestao(ncm, desc, ii, ipi, cofins, icms){
+  const input = document.getElementById('mp_ncm');
+  if(input) input.value = ncm;
+  document.getElementById('ncm_sugestoes').style.display='none';
+  document.getElementById('mp_ii').value = ii;
+  document.getElementById('mp_ipi').value = ipi;
+  document.getElementById('mp_cofins').value = cofins;
+  document.getElementById('mp_icms').value = icms;
+  MKT_KEYS.forEach(mk => atualizarMargemInline(mk));
+  showToast('✅', `NCM ${ncm} — ${desc} selecionado!`);
+}
+
+// ══ IMAGEM DO PRODUTO ══
+function prodImagemPaste(e){
+  const items = (e.clipboardData||e.originalEvent?.clipboardData)?.items;
+  if(!items) return;
+  for(const item of items){
+    if(item.type.indexOf('image') === 0){
+      const blob = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = ev => {
+        document.getElementById('mp_img_preview').src = ev.target.result;
+        document.getElementById('mp_img_preview').style.display = 'block';
+        document.getElementById('mp_img_data').value = ev.target.result;
+        document.getElementById('mp_img_label').textContent = '✅ Imagem colada!';
+      };
+      reader.readAsDataURL(blob);
+      break;
+    }
+  }
+}
+
+function prodImagemUpload(e){
+  const file = e.target.files?.[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('mp_img_preview').src = ev.target.result;
+    document.getElementById('mp_img_preview').style.display = 'block';
+    document.getElementById('mp_img_data').value = ev.target.result;
+    document.getElementById('mp_img_label').textContent = '✅ Imagem carregada!';
+  };
+  reader.readAsDataURL(file);
+}
+
+function prodRemoverImagem(){
+  document.getElementById('mp_img_preview').style.display = 'none';
+  document.getElementById('mp_img_preview').src = '';
+  document.getElementById('mp_img_data').value = '';
+  document.getElementById('mp_img_label').textContent = 'Cole (Ctrl+V) ou clique para fazer upload';
+}
 
 // ── INIT ──
 renderLotes();
