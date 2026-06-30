@@ -1609,6 +1609,10 @@ function abrirSheetProduto(editIdx){
     MKT_KEYS.forEach(mk=>atualizarMargemInline(mk));
   } else {
     ['mp_nome','mp_sku','mp_ncm','mp_rmb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    // Limpar imagem
+    const iPrev=document.getElementById('mp_img_preview'); if(iPrev){iPrev.src='';iPrev.style.display='none';}
+    const iData=document.getElementById('mp_img_data'); if(iData) iData.value='';
+    const iLabel=document.getElementById('mp_img_label'); if(iLabel) iLabel.textContent='Cole (Ctrl+V) ou clique para fazer upload';
     document.getElementById('mp_cat').value='medio';
     document.getElementById('mp_ii').value='0';
     document.getElementById('mp_ipi').value='0';
