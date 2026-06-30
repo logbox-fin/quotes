@@ -2670,40 +2670,78 @@ function initPedDragDrop(){
 
 // ══ PEDIDOS SYNC AO SALVAR ══
 // Atualizar pedidos vinculados quando lote muda
-function sincronizarPedidosDoLote(lote){
-  const peds = getPedidos();
-  let alterou = false;
-  peds.forEach((ped,pi) => {
-    if(String(ped.loteId) !== String(lote.id)) return;
-    // Atualizar cotação e nome do lote
-    peds[pi].cotRmb = lote.cotRmb;
-    peds[pi].cotUsd = lote.cotUsd;
-    peds[pi].loteNome = lote.nome;
-    // Atualizar RMB, margem e nome dos itens
-    peds[pi].itens = ped.itens.map(it => {
-      const prodAtual = lote.produtos.find(p => String(p.id) === String(it.prodId));
-      if(!prodAtual) return it;
-      // Recalcular margem média com dados atuais de marketplace
-      const margens = MKT_KEYS.map(mk => {
-        const m = prodAtual.mkt[mk];
-        if(!m?.preco) return null;
-        const mg = calcMargem(prodAtual.cmv, prodAtual.ipi_p, m.preco, m.frete, m.tarifa, m.rebate, m.ads);
-        return mg?.margem_p||0;
-      }).filter(m => m !== null && m > 0);
-      const margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
-      return { ...it, rmb: prodAtual.rmb, nome: prodAtual.nome, sku: prodAtual.sku||it.sku, margemMedia };
-    });
-    alterou = true;
-  });
-  if(alterou){
-    savePedidos(peds);
-    peds.filter(p=>p.loteId===lote.id).forEach(p=>syncPedidoUp(p));
-    // Se pedido atual está aberto e é do mesmo lote, re-renderizar
-    if(_pedAtual && _pedAtual.loteId === lote.id){
-      const updated = peds.find(p=>p.id===_pedAtual.id);
-      if(updated){ _pedAtual = JSON.parse(JSON.stringify(updated)); pedRenderItens(); pedRecalcTotais(); }
+async function sincronizarPedidosDoLote(lote){
+  try{
+    // Buscar pedidos direto do Supabase para garantir dados atualizados
+    let peds = [];
+    const sbPeds = await sbGet('quotes_pedidos', 'lote_id=eq.'+lote.id+'&order=created_at.desc');
+    if(sbPeds && sbPeds.length){
+      // Mapear do formato Supabase para formato local
+      peds = sbPeds.map(p=>({
+        id: parseInt(p.id)||p.id,
+        nome: p.nome,
+        loteId: parseInt(p.lote_id)||p.lote_id,
+        loteNome: p.lote_nome,
+        marca: p.marca||'',
+        responsavel: p.responsavel||'',
+        cotRmb: parseFloat(p.cot_rmb)||lote.cotRmb,
+        cotUsd: parseFloat(p.cot_usd)||lote.cotUsd,
+        status: p.status,
+        obs: p.obs||'',
+        dataEnvio: p.data_envio,
+        itens: p.itens||[],
+        createdAt: p.created_at
+      }));
+    } else {
+      // Fallback para localStorage se Supabase não retornar
+      peds = getPedidos().filter(p => String(p.loteId) === String(lote.id));
     }
-  }
+
+    if(!peds.length) return;
+
+    let alterou = false;
+    peds.forEach((ped, pi) => {
+      // Atualizar cotação e nome do lote
+      peds[pi].cotRmb = lote.cotRmb;
+      peds[pi].cotUsd = lote.cotUsd;
+      peds[pi].loteNome = lote.nome;
+      // Atualizar itens com dados do lote
+      peds[pi].itens = ped.itens.map(it => {
+        const prodAtual = lote.produtos.find(p => String(p.id) === String(it.prodId));
+        if(!prodAtual) return it;
+        const margens = MKT_KEYS.map(mk => {
+          const m = prodAtual.mkt[mk];
+          if(!m?.preco) return null;
+          const mg = calcMargem(prodAtual.cmv, prodAtual.ipi_p, m.preco, m.frete, m.tarifa, m.rebate, m.ads);
+          return mg?.margem_p||0;
+        }).filter(m => m !== null && m > 0);
+        const margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
+        return { ...it, rmb: prodAtual.rmb, nome: prodAtual.nome, sku: prodAtual.sku||it.sku, margemMedia };
+      });
+      alterou = true;
+    });
+
+    if(alterou){
+      // Atualizar localStorage — merge com pedidos existentes
+      const allLocal = getPedidos();
+      peds.forEach(ped => {
+        const idx = allLocal.findIndex(p => String(p.id) === String(ped.id));
+        if(idx >= 0) allLocal[idx] = ped; else allLocal.unshift(ped);
+      });
+      savePedidos(allLocal);
+      // Sincronizar cada pedido atualizado ao Supabase
+      for(const ped of peds){ await syncPedidoUp(ped); }
+      // Se pedido está aberto e é do mesmo lote, re-renderizar
+      if(_pedAtual && String(_pedAtual.loteId) === String(lote.id)){
+        const updated = peds.find(p => String(p.id) === String(_pedAtual.id));
+        if(updated){
+          _pedAtual = JSON.parse(JSON.stringify(updated));
+          pedRenderItens();
+          pedRecalcTotais();
+        }
+      }
+    }
+  } catch(e){ console.error('sincronizarPedidosDoLote:', e); }
 }
 
 // ══ MINI DASHBOARD PEDIDOS ══
