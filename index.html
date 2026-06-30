@@ -1655,6 +1655,7 @@ function salvarProduto(){
   const ipi_p=parseFloat(document.getElementById('mp_ipi')?.value)||0;
   const cofins_p=parseFloat(document.getElementById('mp_cofins')?.value)||9.65;
   const icms_p=parseFloat(document.getElementById('mp_icms')?.value)||18;
+  const imgData=document.getElementById('mp_img_data')?.value||'';
   const c=calcCMV(rmb,categ,_loteAtual.cenario,_loteAtual.cotRmb,_loteAtual.cotUsd,ii_p,ipi_p,cofins_p,icms_p);
   const mkt={};
   MKT_KEYS.forEach(mk=>{
@@ -2077,7 +2078,6 @@ function salvarCadastroRapido(){
     const ipi_p    = parseFloat(l.ipi_p) || 0;
     const cofins_p = parseFloat(l.cofins_p) || 9.65;
     const icms_p   = parseFloat(l.icms_p) || 18;
-    const imgData = document.getElementById('mp_img_data')?.value||'';
   const c = calcCMV(rmb, categ, _loteAtual.cenario, _loteAtual.cotRmb, _loteAtual.cotUsd, ii_p, ipi_p, cofins_p, icms_p);
     const mkt = {};
     MKT_KEYS.forEach(mk => {
