@@ -1031,7 +1031,7 @@ function setSyncing(v){
 async function syncLoteUp(lote){
   setSyncing(true);
   try{
-    await sbUpsert('quotes_lotes',{id:lote.id,nome:lote.nome,cenario:lote.cenario,cot_rmb:lote.cotRmb,cot_usd:lote.cotUsd,status:lote.status||'rascunho',updated_at:new Date().toISOString()});
+    await sbUpsert('quotes_lotes',{id:lote.id,nome:lote.nome,cenario:lote.cenario,cot_rmb:lote.cotRmb,cot_usd:lote.cotUsd,status:lote.status||'rascunho',marca:lote.marca||'',responsavel:lote.responsavel||'',ordem:lote.ordem||0,updated_at:new Date().toISOString()});
     await sbDelete('quotes_produtos','lote_id=eq.'+lote.id);
     if(lote.produtos.length){
       await sbUpsert('quotes_produtos',lote.produtos.map(p=>({id:p.id,lote_id:lote.id,nome:p.nome,sku:p.sku||'',ncm:p.ncm||'',categ:p.categ,rmb:p.rmb,ii_p:p.ii_p,ipi_p:p.ipi_p,cofins_p:p.cofins_p,icms_p:p.icms_p,vmle:p.vmle,vmld:p.vmld,fp:p.fp,afrmm:p.afrmm,cmv:p.cmv,mkt:p.mkt})));
@@ -1045,7 +1045,7 @@ async function syncLoteDown(){
     const lotes=await sbGet('quotes_lotes','order=created_at.desc');
     if(!lotes) return;
     const prods=await sbGet('quotes_produtos','order=created_at.asc');
-    saveLotes(lotes.map(l=>({id:parseInt(l.id)||l.id,nome:l.nome,cenario:l.cenario,cotRmb:parseFloat(l.cot_rmb),cotUsd:parseFloat(l.cot_usd),status:l.status,createdAt:l.created_at,marca:l.marca||'',responsavel:l.responsavel||'',produtos:(prods||[]).filter(p=>String(p.lote_id)===String(l.id)).map(p=>({id:parseInt(p.id)||p.id,nome:p.nome,sku:p.sku,ncm:p.ncm,categ:p.categ,rmb:parseFloat(p.rmb),ii_p:parseFloat(p.ii_p),ipi_p:parseFloat(p.ipi_p),cofins_p:parseFloat(p.cofins_p),icms_p:parseFloat(p.icms_p),vmle:parseFloat(p.vmle),vmld:parseFloat(p.vmld),fp:parseFloat(p.fp),afrmm:parseFloat(p.afrmm),cmv:parseFloat(p.cmv),mkt:p.mkt,img:p.img||''}))})));
+    saveLotes(lotes.map(l=>({id:parseInt(l.id)||l.id,nome:l.nome,cenario:l.cenario,cotRmb:parseFloat(l.cot_rmb),cotUsd:parseFloat(l.cot_usd),status:l.status,createdAt:l.created_at,marca:l.marca||'',responsavel:l.responsavel||'',ordem:parseInt(l.ordem)||0,produtos:(prods||[]).filter(p=>String(p.lote_id)===String(l.id)).map(p=>({id:parseInt(p.id)||p.id,nome:p.nome,sku:p.sku,ncm:p.ncm,categ:p.categ,rmb:parseFloat(p.rmb),ii_p:parseFloat(p.ii_p),ipi_p:parseFloat(p.ipi_p),cofins_p:parseFloat(p.cofins_p),icms_p:parseFloat(p.icms_p),vmle:parseFloat(p.vmle),vmld:parseFloat(p.vmld),fp:parseFloat(p.fp),afrmm:parseFloat(p.afrmm),cmv:parseFloat(p.cmv),mkt:p.mkt,img:p.img||''}))})));
   }catch(e){console.error('syncLoteDown:',e);}
 }
 
@@ -1082,6 +1082,17 @@ function salvarMarcas(lista){
 }
 function salvarResps(lista){
   const cfg = getConfig(); cfg.responsaveis = lista; saveConfig(cfg); syncConfigUp(cfg);
+}
+
+
+function excluirHistorico(i){
+  const cfg = getConfig();
+  if(!cfg.historico) return;
+  cfg.historico.splice(i,1);
+  saveConfig(cfg);
+  syncConfigUp(cfg);
+  renderConfig();
+  showToast('🗑️','Entrada removida do histórico.');
 }
 
 function cfgAddMarca(){
@@ -1400,7 +1411,7 @@ function renderConfig(){
   if(!hist) return;
   const h=cfg.historico||[];
   if(!h.length){hist.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0;">Nenhuma cotação salva ainda.</div>';return;}
-  hist.innerHTML=h.map(r=>{
+  hist.innerHTML=h.map((r,i)=>{
     const d=new Date(r.data).toLocaleDateString('pt-BR');
     const cenLabel={baixo:'🟢',medio:'🟡',alto:'🔴'}[r.cenario]||'';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-2);">
@@ -1408,6 +1419,7 @@ function renderConfig(){
         <div style="font-size:13px;font-weight:700;color:var(--ink);">¥${r.rmb_usd} / R$${r.usd_brl}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">${d} · ${cenLabel} ${r.cenario}</div>
       </div>
+      <button onclick="excluirHistorico(${i})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">✕</button>
     </div>`;
   }).join('');
 }
@@ -1512,18 +1524,20 @@ function renderLotes(){
   if(fMarca) all=all.filter(l=>(l.marca||'')=== fMarca);
   if(fResp) all=all.filter(l=>(l.responsavel||'')=== fResp);
   if(_ordemLotesAZ) all=[...all].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  else all=[...all].sort((a,b)=>(a.ordem||0)-(b.ordem||0));
   const body=document.getElementById('lotes_body');
   if(!body) return;
   if(!all.length){
     body.innerHTML=`<div class="empty"><span class="empty-emoji">📋</span><div class="empty-title">${q?'Nenhum resultado':'Nenhum Quote ainda'}</div><div class="empty-sub">${q?'Tente outro termo de busca':'Crie seu primeiro lote de precificação'}</div></div>`;
     return;
   }
+  // Salvar ordem atual antes de renderizar
   body.innerHTML=all.map((l,i)=>{
     const data=new Date(l.createdAt).toLocaleDateString('pt-BR');
     const cenLabel={baixo:'🟢',medio:'🟡',alto:'🔴'}[l.cenario]||'';
     const nP=l.produtos.length;
     const realIdx=getLotes().findIndex(x=>x.id===l.id);
-    return `<div class="list-item" onclick="abrirLoteSalvo(${realIdx})">
+    return `<div class="list-item" onclick="abrirLoteSalvo(${l.id})" data-lote-id="${l.id}">
       <div class="list-item-icon">📋</div>
       <div class="list-item-body">
         <div class="list-item-title">${l.nome}</div>
@@ -1531,23 +1545,25 @@ function renderLotes(){
       </div>
       <div class="list-item-right">
         <span style="color:var(--muted-2);font-size:18px;">›</span>
-        <button onclick="event.stopPropagation();copiarLote(${realIdx})" style="background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,95,199,.2);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">⧉</button>
-        <button onclick="event.stopPropagation();excluirLote(${realIdx})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
+        <button onclick="event.stopPropagation();copiarLote(${l.id})" style="background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,95,199,.2);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">⧉</button>
+        <button onclick="event.stopPropagation();excluirLote(${l.id})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
       </div>
     </div>`;
   }).join('');
+  setTimeout(initLotesDragDrop, 50);
 }
 
-function abrirLoteSalvo(i){
+function abrirLoteSalvo(id){
   const all=getLotes();
-  if(!all[i]) return;
-  _loteAtual=JSON.parse(JSON.stringify(all[i]));
+  const lote=all.find(l=>String(l.id)===String(id));
+  if(!lote) return;
+  _loteAtual=JSON.parse(JSON.stringify(lote));
   abrirEditor();
 }
 
-async function copiarLote(i){
+async function copiarLote(id){
   const all=getLotes();
-  const orig=all[i];
+  const orig=all.find(l=>String(l.id)===String(id));
   if(!orig) return;
   const cfg=getConfig();
   const novo=JSON.parse(JSON.stringify(orig));
@@ -1572,10 +1588,17 @@ async function copiarLote(i){
   showToast('⧉','Lote copiado com cotações atuais!');
 }
 
-async function excluirLote(i){
+async function excluirLote(loteId){
   const ok=await showConfirm('Excluir Quote','Deseja excluir permanentemente?','Excluir','Cancelar');
   if(!ok) return;
-  const all=getLotes();all.splice(i,1);saveLotes(all);renderLotes();
+  const all=getLotes();
+  const idx=all.findIndex(l=>String(l.id)===String(loteId));
+  if(idx<0) return;
+  all.splice(idx,1);saveLotes(all);
+  // Deletar do Supabase
+  await sbDelete('quotes_lotes','id=eq.'+loteId);
+  await sbDelete('quotes_produtos','lote_id=eq.'+loteId);
+  renderLotes();
   showToast('🗑️','Quote excluído.');
 }
 
@@ -2008,7 +2031,7 @@ function renderNCMs(){
       </div>
       <div class="ncm-card-actions">
         <button onclick="editarNCM(${realIdx})" style="background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,95,199,.2);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px;">✏️</button>
-        <button onclick="excluirNCM(${realIdx})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
+        <button onclick="excluirNCM('${r.ncm}')" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -2075,12 +2098,64 @@ function salvarNCM(){
   showToast('✅', _editNcmIdx !== null ? 'NCM atualizado!' : 'NCM salvo!');
 }
 
-async function excluirNCM(i){
+async function excluirNCM(ncmVal){
   const ok=await showConfirm('Excluir NCM','Remover este NCM do banco?','Excluir','Cancelar');
   if(!ok) return;
-  const list=getNCMs();const nv=list[i]?.ncm;list.splice(i,1);saveNCMs(list);if(nv)syncNCMDelete(nv);renderNCMs();showToast('🗑️','NCM removido.');
+  const list=getNCMs();
+  const idx=list.findIndex(r=>r.ncm===ncmVal);
+  if(idx>=0) list.splice(idx,1);
+  saveNCMs(list);
+  if(ncmVal) syncNCMDelete(ncmVal);
+  renderNCMs();
+  showToast('🗑️','NCM removido.');
 }
 
+
+
+// ══ DnD LISTA DE LOTES ══
+let _loteDragId = null;
+
+function initLotesDragDrop(){
+  const items = document.querySelectorAll('#lotes_body .list-item[data-lote-id]');
+  items.forEach(item => {
+    item.setAttribute('draggable','true');
+    item.style.cursor = 'grab';
+
+    item.addEventListener('dragstart', e => {
+      _loteDragId = item.dataset.loteId;
+      item.style.opacity = '.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.style.opacity = '1';
+      document.querySelectorAll('#lotes_body .list-item').forEach(r => r.style.borderTop = '');
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.querySelectorAll('#lotes_body .list-item').forEach(r => r.style.borderTop = '');
+      item.style.borderTop = '2px solid var(--accent)';
+    });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      document.querySelectorAll('#lotes_body .list-item').forEach(r => r.style.borderTop = '');
+      const toId = item.dataset.loteId;
+      if(!_loteDragId || _loteDragId === toId) return;
+      const all = getLotes();
+      const fromIdx = all.findIndex(l => String(l.id) === String(_loteDragId));
+      const toIdx   = all.findIndex(l => String(l.id) === String(toId));
+      if(fromIdx < 0 || toIdx < 0) return;
+      const [moved] = all.splice(fromIdx, 1);
+      all.splice(toIdx, 0, moved);
+      // Atualizar campo ordem
+      all.forEach((l,i) => { l.ordem = i; });
+      saveLotes(all);
+      // Sync ordem no Supabase (batch)
+      all.forEach(l => sbUpsert('quotes_lotes',{id:l.id,nome:l.nome,cenario:l.cenario,cot_rmb:l.cotRmb,cot_usd:l.cotUsd,status:l.status||'rascunho',marca:l.marca||'',responsavel:l.responsavel||'',ordem:l.ordem,updated_at:new Date().toISOString()}));
+      _loteDragId = null;
+      renderLotes();
+    });
+  });
+}
 
 // ══ CADASTRO RÁPIDO ══
 let _crLinhas = [];
@@ -2361,7 +2436,7 @@ function renderPedidosLista(){
       <div class="list-item-right">
         <span class="badge ${statusBadge[p.status]||'badge-gray'}">${statusLabel[p.status]||p.status}</span>
         <span style="font-size:12px;font-weight:700;color:var(--ink);">¥ ${fmtN(totalRmb)}</span>
-        <button onclick="event.stopPropagation();excluirPedido(${realIdx})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
+        <button onclick="event.stopPropagation();excluirPedido(${p.id})" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-br);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -2522,7 +2597,7 @@ function pedAutoSave(){
   clearTimeout(_pedAutoSaveTimer);
   _pedAutoSaveTimer = setTimeout(() => {
     const all = getPedidos();
-    const idx = all.findIndex(p => p.id === _pedAtual.id);
+    const idx = all.findIndex(p => String(p.id) === String(_pedAtual.id));
     if(idx >= 0) all[idx] = _pedAtual; else all.unshift(_pedAtual);
     savePedidos(all);
     syncPedidoUp(_pedAtual);
@@ -2539,11 +2614,14 @@ function pedVerLote(){
   abrirEditor();
 }
 
-async function excluirPedido(idx){
+async function excluirPedido(pedId){
   const ok = await showConfirm('Excluir Pedido','Deseja excluir este pedido permanentemente?','Excluir','Cancelar');
   if(!ok) return;
-  const all = getPedidos(); const pedId=all[idx]?.id; all.splice(idx,1); savePedidos(all);
-  if(pedId) syncPedidoDelete(pedId);
+  const all = getPedidos();
+  const idx = all.findIndex(p=>String(p.id)===String(pedId));
+  if(idx>=0) all.splice(idx,1);
+  savePedidos(all);
+  syncPedidoDelete(pedId);
   renderPedidosLista(); renderPedDashboard();
   showToast('🗑️','Pedido excluído.');
 }
