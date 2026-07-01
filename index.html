@@ -1067,6 +1067,79 @@ async function syncNCMDelete(ncm){
   catch(e){console.error('syncNCMDelete:',e);}
 }
 
+
+// ══ MARCAS E RESPONSÁVEIS ══
+function getMarcas(){
+  const cfg = getConfig();
+  return cfg.marcas || ['Variall','Thametal','Boyu Cell','TibKids'];
+}
+function getResps(){
+  const cfg = getConfig();
+  return cfg.responsaveis || [];
+}
+function salvarMarcas(lista){
+  const cfg = getConfig(); cfg.marcas = lista; saveConfig(cfg); syncConfigUp(cfg);
+}
+function salvarResps(lista){
+  const cfg = getConfig(); cfg.responsaveis = lista; saveConfig(cfg); syncConfigUp(cfg);
+}
+
+function cfgAddMarca(){
+  const val = document.getElementById('cfg_nova_marca')?.value?.trim();
+  if(!val){ showToast('⚠️','Informe o nome da marca.'); return; }
+  const list = getMarcas();
+  if(list.includes(val)){ showToast('⚠️','Marca já existe.'); return; }
+  list.push(val); salvarMarcas(list);
+  document.getElementById('cfg_nova_marca').value = '';
+  cfgRenderMarcas(); cfgPopulateSelects();
+  showToast('✅','Marca adicionada!');
+}
+
+function cfgRemoverMarca(i){
+  const list = getMarcas(); list.splice(i,1); salvarMarcas(list);
+  cfgRenderMarcas(); cfgPopulateSelects();
+  showToast('🗑️','Marca removida.');
+}
+
+function cfgAddResp(){
+  const val = document.getElementById('cfg_novo_resp')?.value?.trim();
+  if(!val){ showToast('⚠️','Informe o nome.'); return; }
+  const list = getResps();
+  if(list.includes(val)){ showToast('⚠️','Responsável já existe.'); return; }
+  list.push(val); salvarResps(list);
+  document.getElementById('cfg_novo_resp').value = '';
+  cfgRenderResps(); cfgPopulateSelects();
+  showToast('✅','Responsável adicionado!');
+}
+
+function cfgRemoverResp(i){
+  const list = getResps(); list.splice(i,1); salvarResps(list);
+  cfgRenderResps(); cfgPopulateSelects();
+  showToast('🗑️','Responsável removido.');
+}
+
+function cfgRenderMarcas(){
+  const list = getMarcas();
+  const el = document.getElementById('cfg_marcas_list');
+  if(!el) return;
+  el.innerHTML = list.length ? list.map((m,i) => `
+    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid rgba(91,95,199,.2);border-radius:20px;padding:5px 12px;margin:2px;">
+      <span style="font-size:13px;font-weight:600;color:var(--accent);">${m}</span>
+      <button onclick="cfgRemoverMarca(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+    </div>`).join('') : '<span style="font-size:13px;color:var(--muted);">Nenhuma marca cadastrada.</span>';
+}
+
+function cfgRenderResps(){
+  const list = getResps();
+  const el = document.getElementById('cfg_resps_list');
+  if(!el) return;
+  el.innerHTML = list.length ? list.map((r,i) => `
+    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;margin:2px;">
+      <span style="font-size:13px;font-weight:600;color:var(--ink-3);">👤 ${r}</span>
+      <button onclick="cfgRemoverResp(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+    </div>`).join('') : '<span style="font-size:13px;color:var(--muted);">Nenhum responsável cadastrado.</span>';
+}
+
 async function syncConfigUp(cfg){
   try{
     const payload = {
