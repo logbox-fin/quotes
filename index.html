@@ -1147,8 +1147,15 @@ async function syncPedidoDelete(id){
 
 async function syncInicial(){
   setSyncing(true);
-  await Promise.all([syncLoteDown(),syncNCMsDown(),syncConfigDown(),syncPedidosDown()]);
-  renderLotes();renderNCMs();renderConfig();cfgPopulateSelects();
+  // 1. Sync config PRIMEIRO para ter marcas/responsáveis corretos
+  await syncConfigDown();
+  renderConfig();
+  cfgPopulateSelects();
+  // 2. Resto em paralelo
+  await Promise.all([syncLoteDown(), syncNCMsDown(), syncPedidosDown()]);
+  renderLotes();
+  renderNCMs();
+  renderPedDashboard();
   setSyncing(false);
   showToast('✅','Sincronizado!');
 }
@@ -2864,8 +2871,6 @@ function prodRemoverImagem(){
 
 // ── INIT ──
 renderLotes();
-renderConfig();
-cfgPopulateSelects();
 renderPedDashboard();
 syncInicial();
 </script>
