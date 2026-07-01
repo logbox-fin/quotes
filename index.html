@@ -1480,9 +1480,7 @@ function abrirSheetEditarLote(){
   document.getElementById('el_cenario').value=_loteAtual.cenario||'medio';
   document.getElementById('el_rmb_usd').value=_loteAtual.cotRmb||7;
   document.getElementById('el_usd_brl').value=_loteAtual.cotUsd||5.80;
-  cfgPopulateSelects();
-  if(_loteAtual.marca) document.getElementById('el_marca').value=_loteAtual.marca;
-  if(_loteAtual.responsavel) document.getElementById('el_resp').value=_loteAtual.responsavel;
+  cfgPopulateSelects(_loteAtual.marca||'', _loteAtual.responsavel||'');
   abrirSheet('sheet_editar_lote');
 }
 
@@ -2246,10 +2244,9 @@ function renderPedidosLista(){
   const statusBadge = { rascunho:'badge-gray', enviado:'badge-yellow', confirmado:'badge-green', cancelado:'badge-red' };
 
   body.innerHTML = list.map((p,i) => {
-    const realIdx = all.findIndex(x => x.id === p.id);
     const totalRmb = p.itens.reduce((s,it) => s+(it.rmb*(it.qtd||0)),0);
     const data = new Date(p.createdAt).toLocaleDateString('pt-BR');
-    return `<div class="list-item" onclick="abrirPedido(${realIdx})">
+    return `<div class="list-item" onclick="abrirPedido(${p.id})">
       <div class="list-item-icon">🛒</div>
       <div class="list-item-body">
         <div class="list-item-title">${p.nome}</div>
@@ -2265,9 +2262,11 @@ function renderPedidosLista(){
 }
 
 // ── Abrir pedido ──
-function abrirPedido(idx){
+function abrirPedido(id){
   const all = getPedidos();
-  _pedAtual = JSON.parse(JSON.stringify(all[idx]));
+  const ped = all.find(p => String(p.id) === String(id));
+  if(!ped){ showToast('⚠️','Pedido não encontrado.'); return; }
+  _pedAtual = JSON.parse(JSON.stringify(ped));
   renderPedidoEditor();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-pedido-editor').classList.add('active');
@@ -2303,10 +2302,28 @@ function renderPedidoEditor(){
 function pedRenderItens(){
   const tbody = document.getElementById('ped_itens_tbody');
   if(!tbody||!_pedAtual) return;
+  // Buscar lote vinculado para dados em tempo real
+  const loteVinc = getLotes().find(l => String(l.id) === String(_pedAtual.loteId));
 
   tbody.innerHTML = _pedAtual.itens.map((it,i) => {
-    const total = (it.rmb||0) * (it.qtd||0);
-    const mbCls = it.margemMedia !== null && it.margemMedia !== undefined ? mbClass(it.margemMedia) : 'badge-gray';
+    // Buscar dados atuais do produto no lote
+    const prodAtual = loteVinc?.produtos?.find(p => String(p.id) === String(it.prodId));
+    const nomeReal = prodAtual?.nome || it.nome || '—';
+    const skuReal  = prodAtual?.sku  || it.sku  || '—';
+    const rmbUnit  = it.rmbNegociado || prodAtual?.rmb || it.rmb || 0;
+    // Margem em tempo real
+    let margemMedia = null;
+    if(prodAtual){
+      const margens = MKT_KEYS.map(mk => {
+        const m = prodAtual.mkt[mk];
+        if(!m?.preco) return null;
+        const mg = calcMargem(prodAtual.cmv, prodAtual.ipi_p, m.preco, m.frete, m.tarifa, m.rebate, m.ads);
+        return mg?.margem_p||0;
+      }).filter(m => m !== null && m > 0);
+      margemMedia = margens.length ? margens.reduce((a,b)=>a+b,0)/margens.length : null;
+    }
+    const total = rmbUnit * (it.qtd||0);
+    const mbCls = margemMedia !== null ? mbClass(margemMedia) : 'badge-gray';
     return `<tr data-ped-idx="${i}" draggable="true" style="border-bottom:1px solid var(--border-2);cursor:grab;">
       <td style="padding:10px 8px;text-align:center;color:var(--muted-2);font-size:16px;cursor:grab;">⠿</td>
       <td style="padding:10px 12px;text-align:center;">
@@ -2314,16 +2331,16 @@ function pedRenderItens(){
           onchange="_pedAtual.itens[${i}].selecionado=this.checked;pedRecalcTotais();pedAutoSave()"/>
       </td>
       <td style="padding:10px 12px;">
-        <div style="font-weight:700;font-size:13px;color:var(--ink);">${it.nome}</div>
-        <div style="font-size:11px;color:var(--muted-2);">${it.sku||''}</div>
+        <div style="font-weight:700;font-size:13px;color:var(--ink);">${nomeReal}</div>
+        <div style="font-size:11px;color:var(--muted-2);">${skuReal}</div>
       </td>
       <td style="padding:10px 12px;">
-        ${it.margemMedia!==null&&it.margemMedia!==undefined?`<span class="badge ${mbCls}">${fmtN(it.margemMedia)}%</span>`:'<span style="color:var(--muted-2);font-size:12px;">—</span>'}
+        ${margemMedia!==null?`<span class="badge ${mbCls}">${fmtN(margemMedia)}%</span>`:'<span style="color:var(--muted-2);font-size:12px;">—</span>'}
       </td>
       <td style="padding:10px 12px;text-align:right;">
-        <input type="number" value="${it.rmb||''}" inputmode="decimal" step="0.01"
+        <input type="number" value="${rmbUnit}" inputmode="decimal" step="0.01"
           style="width:80px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;text-align:right;font-family:inherit;"
-          onchange="_pedAtual.itens[${i}].rmb=parseFloat(this.value)||0;pedRecalcTotais();pedAutoSave()"/>
+          onchange="pedAtualizarRmb(${i},parseFloat(this.value)||0)"/>
       </td>
       <td style="padding:10px 12px;text-align:center;">
         <input type="number" value="${it.qtd||''}" inputmode="numeric" min="0" placeholder="0"
@@ -2343,7 +2360,12 @@ function pedRenderItens(){
 function pedRecalcTotais(){
   if(!_pedAtual) return;
   const cotRmb = parseFloat(document.getElementById('ped_cotacao_rmb')?.value) || _pedAtual.cotRmb || 7;
-  const totalRmb = _pedAtual.itens.filter(it=>it.selecionado!==false).reduce((s,it)=>s+(it.rmb||0)*(it.qtd||0),0);
+  const loteVincTot = getLotes().find(l=>String(l.id)===String(_pedAtual.loteId));
+  const totalRmb = _pedAtual.itens.filter(it=>it.selecionado!==false).reduce((s,it)=>{
+    const prod = loteVincTot?.produtos?.find(p=>String(p.id)===String(it.prodId));
+    const rmb = it.rmbNegociado || prod?.rmb || it.rmb || 0;
+    return s + rmb*(it.qtd||0);
+  },0);
   const totalUsd = totalRmb / cotRmb;
   const rmb_el = document.getElementById('ped_total_rmb');
   const usd_el = document.getElementById('ped_total_usd');
@@ -2420,254 +2442,153 @@ async function excluirPedido(idx){
   showToast('🗑️','Pedido excluído.');
 }
 
+
+// ── Atualizar RMB negociado — reflete no pedido E no lote ──
+function pedAtualizarRmb(itemIdx, novoRmb){
+  if(!_pedAtual) return;
+  _pedAtual.itens[itemIdx].rmbNegociado = novoRmb;
+  // Atualizar RMB no lote vinculado
+  const all = getLotes();
+  const loteIdx = all.findIndex(l => String(l.id) === String(_pedAtual.loteId));
+  if(loteIdx >= 0){
+    const prodId = _pedAtual.itens[itemIdx].prodId;
+    const prodIdx = all[loteIdx].produtos.findIndex(p => String(p.id) === String(prodId));
+    if(prodIdx >= 0){
+      all[loteIdx].produtos[prodIdx].rmb = novoRmb;
+      // Recalcular CMV
+      const p = all[loteIdx].produtos[prodIdx];
+      const c = calcCMV(novoRmb, p.categ, all[loteIdx].cenario, all[loteIdx].cotRmb, all[loteIdx].cotUsd, p.ii_p, p.ipi_p, p.cofins_p, p.icms_p);
+      Object.assign(all[loteIdx].produtos[prodIdx], c);
+      saveLotes(all);
+      syncLoteUp(all[loteIdx]);
+      // Atualizar _loteAtual se for o mesmo
+      if(_loteAtual && String(_loteAtual.id) === String(_pedAtual.loteId)){
+        _loteAtual = JSON.parse(JSON.stringify(all[loteIdx]));
+      }
+    }
+  }
+  pedRecalcTotais();
+  pedAutoSave();
+}
+
 // ── Exportar PDF ──
 function pedExportarPDF(){
   if(!_pedAtual) return;
   const cotRmb = parseFloat(document.getElementById('ped_cotacao_rmb')?.value) || _pedAtual.cotRmb || 7;
+  const loteVinc = getLotes().find(l => String(l.id) === String(_pedAtual.loteId));
   const itensSel = _pedAtual.itens.filter(it => it.selecionado !== false);
-  const totalRmb = itensSel.reduce((s,it) => s+(it.rmb||0)*(it.qtd||0), 0);
-  const totalUsd = totalRmb / cotRmb;
-  const statusLabel = { rascunho:'Rascunho', enviado:'Enviado ao Fornecedor', confirmado:'Confirmado', cancelado:'Cancelado' };
-  const data = new Date().toLocaleDateString('pt-BR');
+  const totalRmb = itensSel.reduce((s,it) => {
+    const prod = loteVinc?.produtos?.find(p=>String(p.id)===String(it.prodId));
+    const rmb = it.rmbNegociado || prod?.rmb || it.rmb || 0;
+    return s + rmb*(it.qtd||0);
+  }, 0);
+  const statusLabel = { rascunho:'Draft', enviado:'Sent to Supplier', confirmado:'Confirmed', cancelado:'Cancelled' };
+  const data = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const pedNome = _pedAtual.nome || 'Purchase Order';
+  const marca = _pedAtual.marca || loteVinc?.marca || '';
+  const responsavel = _pedAtual.responsavel || loteVinc?.responsavel || '';
+
+  const rowsHTML = itensSel.map((it,i) => {
+    const prod = loteVinc?.produtos?.find(p=>String(p.id)===String(it.prodId));
+    const img = prod?.img || '';
+    const nome = prod?.nome || it.nome || '—';
+    const sku  = prod?.sku  || it.sku  || '—';
+    const rmb  = it.rmbNegociado || prod?.rmb || it.rmb || 0;
+    const total = rmb * (it.qtd||0);
+    const bg = i%2===0 ? 'white' : '#f7f7fb';
+    return `<tr style="background:${bg};">
+      <td style="padding:10px 12px;color:#9898aa;font-weight:600;font-size:12px;">${String(i+1).padStart(2,'0')}</td>
+      <td style="padding:10px 12px;text-align:center;">${img?`<img src="${img}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #e8e8f0;"/>`:'<div style="width:44px;height:44px;background:#f0f0f5;border-radius:6px;display:inline-block;"></div>'}</td>
+      <td style="padding:10px 12px;font-weight:700;font-size:13px;">${nome}</td>
+      <td style="padding:10px 12px;color:#6b6b80;font-size:12px;">${sku}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;">¥ ${fmtN(rmb)}</td>
+      <td style="padding:10px 12px;text-align:center;font-weight:700;">${it.qtd||0}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:800;color:#0a0a0f;">¥ ${fmtN(total)}</td>
+    </tr>`;
+  }).join('');
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>${pedNome}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:'Plus Jakarta Sans',sans-serif;color:#0a0a0f;background:white;padding:40px;}
-    .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #0070F3;}
-    .logo{font-size:28px;font-weight:900;letter-spacing:-1px;color:#0a0a0f;}
+    body{font-family:'Plus Jakarta Sans',sans-serif;color:#0a0a0f;background:white;padding:40px;font-size:13px;}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:24px;border-bottom:3px solid #5b5fc7;}
+    .logo{font-size:26px;font-weight:900;letter-spacing:-1px;}
     .logo em{font-style:normal;color:#5b5fc7;}
-    .logo span{display:block;font-size:12px;font-weight:500;color:#9898aa;margin-top:2px;}
-    .header-info{text-align:right;}
-    .header-info h1{font-size:20px;font-weight:900;color:#0a0a0f;letter-spacing:-.4px;}
-    .header-info p{font-size:12px;color:#6b6b80;margin-top:4px;}
+    .logo-sub{font-size:11px;font-weight:500;color:#9898aa;margin-top:3px;}
+    .header-right{text-align:right;}
+    .ped-title{font-size:18px;font-weight:900;color:#0a0a0f;letter-spacing:-.4px;}
+    .ped-date{font-size:12px;color:#6b6b80;margin-top:4px;}
     .status-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#eef2ff;color:#5b5fc7;margin-top:6px;}
-    .info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;}
-    .info-card{background:#f7f7fb;border-radius:10px;padding:14px 16px;}
-    .info-label{font-size:10px;font-weight:700;color:#9898aa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
-    .info-value{font-size:18px;font-weight:900;color:#0a0a0f;letter-spacing:-.4px;}
-    table{width:100%;border-collapse:collapse;margin-bottom:24px;}
-    thead tr{background:#0a0a0f;color:white;}
-    th{padding:12px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
-    th:last-child,td:last-child{text-align:right;}
-    td{padding:12px 14px;border-bottom:1px solid #f0f0f5;font-size:13px;}
-    tbody tr:nth-child(even){background:#f7f7fb;}
-    .totais{background:#0a0a0f;border-radius:12px;padding:20px 24px;color:white;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-    .total-item{text-align:center;}
-    .total-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
-    .total-value{font-size:22px;font-weight:900;letter-spacing:-.5px;}
-    .obs{background:#f7f7fb;border-radius:10px;padding:16px;margin-bottom:24px;}
-    .obs-title{font-size:11px;font-weight:700;color:#9898aa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
-    .obs-text{font-size:13px;color:#2e2e3e;line-height:1.6;}
-    .footer{text-align:center;font-size:11px;color:#9898aa;border-top:1px solid #f0f0f5;padding-top:16px;}
+    .meta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+    .meta-card{background:#f7f7fb;border-radius:10px;padding:12px 14px;}
+    .meta-label{font-size:10px;font-weight:700;color:#9898aa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
+    .meta-value{font-size:15px;font-weight:800;color:#0a0a0f;letter-spacing:-.3px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:10px;overflow:hidden;border:1px solid #e8e8f0;}
+    thead tr{background:#0a0a0f;}
+    th{padding:11px 12px;text-align:left;font-size:10px;font-weight:700;color:white;text-transform:uppercase;letter-spacing:.5px;}
+    th.right{text-align:right;}
+    th.center{text-align:center;}
+    td{border-bottom:1px solid #f0f0f5;vertical-align:middle;}
+    .totals-bar{background:#0a0a0f;border-radius:10px;padding:16px 24px;color:white;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+    .tot-item{text-align:center;}
+    .tot-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
+    .tot-value{font-size:20px;font-weight:900;letter-spacing:-.5px;}
+    .notes-box{background:#f7f7fb;border-radius:10px;padding:14px 16px;margin-bottom:20px;}
+    .notes-label{font-size:10px;font-weight:700;color:#9898aa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .notes-text{font-size:13px;color:#2e2e3e;line-height:1.6;}
+    .footer{text-align:center;font-size:11px;color:#9898aa;border-top:1px solid #f0f0f5;padding-top:14px;margin-top:8px;}
   </style>
   </head><body>
   <div class="header">
-    <div class="logo">Quot<em>es</em><span>by LogBox</span></div>
-    <div class="header-info">
-      <h1>${_pedAtual.nome}</h1>
-      <p>Gerado em ${data}</p>
+    <div>
+      <div class="logo">Quot<em>es</em></div>
+      <div class="logo-sub">by LogBox</div>
+    </div>
+    <div class="header-right">
+      <div class="ped-title">${pedNome}</div>
+      <div class="ped-date">Generated on ${data}</div>
       <div class="status-badge">${statusLabel[_pedAtual.status]||_pedAtual.status}</div>
     </div>
   </div>
 
-  <div class="info-grid" style="grid-template-columns:1fr 1fr;">
-    <div class="info-card"><div class="info-label">Lote Vinculado</div><div class="info-value" style="font-size:14px;">${_pedAtual.loteNome}</div></div>
-    <div class="info-card"><div class="info-label">Total RMB</div><div class="info-value">¥ ${fmtN(totalRmb)}</div></div>
+  <div class="meta-row">
+    <div class="meta-card"><div class="meta-label">Linked Quote</div><div class="meta-value" style="font-size:13px;">${_pedAtual.loteNome||'—'}</div></div>
+    <div class="meta-card"><div class="meta-label">Total RMB</div><div class="meta-value">¥ ${fmtN(totalRmb)}</div></div>
+    ${marca?`<div class="meta-card"><div class="meta-label">Brand</div><div class="meta-value" style="font-size:13px;">${marca}</div></div>`:''}
+    ${responsavel?`<div class="meta-card"><div class="meta-label">Responsible</div><div class="meta-value" style="font-size:13px;">${responsavel}</div></div>`:''}
   </div>
 
   <table>
     <thead><tr>
-      <th>#</th><th>Produto</th><th>SKU</th><th style="text-align:right;">¥ Unit.</th><th style="text-align:center;">Qtd</th><th>Total ¥</th>
+      <th>#</th>
+      <th class="center">Image</th>
+      <th>Product</th>
+      <th>SKU</th>
+      <th class="right">Unit. Price (¥)</th>
+      <th class="center">Qty</th>
+      <th class="right">Total (¥)</th>
     </tr></thead>
-    <tbody>
-      ${itensSel.map((it,i) => `<tr>
-        <td style="color:#9898aa;font-weight:600;">${String(i+1).padStart(2,'0')}</td>
-        <td style="font-weight:700;">${it.nome}</td>
-        <td style="color:#6b6b80;">${it.sku||'—'}</td>
-        <td style="text-align:right;font-weight:700;">¥ ${fmtN(it.rmb||0)}</td>
-        <td style="text-align:center;font-weight:700;">${it.qtd||0}</td>
-        <td style="font-weight:800;color:#0a0a0f;">¥ ${fmtN((it.rmb||0)*(it.qtd||0))}</td>
-      </tr>`).join('')}
-    </tbody>
+    <tbody>${rowsHTML}</tbody>
   </table>
 
-  <div class="totais">
-    <div class="total-item"><div class="total-label">Produtos</div><div class="total-value">${itensSel.length}</div></div>
-    <div class="total-item"><div class="total-label">Total RMB</div><div class="total-value">¥ ${fmtN(totalRmb)}</div></div>
+  <div class="totals-bar">
+    <div class="tot-item"><div class="tot-label">Products</div><div class="tot-value">${itensSel.length}</div></div>
+    <div class="tot-item"><div class="tot-label">Total RMB</div><div class="tot-value">¥ ${fmtN(totalRmb)}</div></div>
   </div>
 
-  ${_pedAtual.obs ? `<div class="obs"><div class="obs-title">Observações</div><div class="obs-text">${_pedAtual.obs}</div></div>` : ''}
+  ${_pedAtual.obs?`<div class="notes-box"><div class="notes-label">Notes</div><div class="notes-text">${_pedAtual.obs}</div></div>`:''}
 
-  <div class="footer">Quotes by LogBox · Pedido gerado em ${data}</div>
+  <div class="footer">Quotes by LogBox · Purchase Order · ${data}</div>
   </body></html>`;
 
   const win = window.open('','_blank');
+  win.document.title = pedNome;
   win.document.write(html);
   win.document.close();
-  setTimeout(() => win.print(), 500);
+  setTimeout(()=>win.print(),600);
 }
-
-
-// ══ MARCAS E RESPONSÁVEIS ══
-function getMarcas(){ 
-  const cfg = getConfig();
-  return cfg.marcas || ['Variall','Thametal','Boyu Cell','TibKids'];
-}
-function getResps(){ 
-  const cfg = getConfig();
-  return cfg.responsaveis || [];
-}
-function salvarMarcas(lista){ 
-  const cfg = getConfig(); cfg.marcas = lista; saveConfig(cfg); syncConfigUp(cfg);
-}
-function salvarResps(lista){ 
-  const cfg = getConfig(); cfg.responsaveis = lista; saveConfig(cfg); syncConfigUp(cfg);
-}
-
-function cfgAddMarca(){
-  const val = document.getElementById('cfg_nova_marca')?.value?.trim();
-  if(!val){ showToast('⚠️','Informe o nome da marca.'); return; }
-  const list = getMarcas();
-  if(list.includes(val)){ showToast('⚠️','Marca já existe.'); return; }
-  list.push(val); salvarMarcas(list);
-  document.getElementById('cfg_nova_marca').value = '';
-  cfgRenderMarcas(); cfgPopulateSelects();
-  showToast('✅','Marca adicionada!');
-}
-
-function cfgRemoverMarca(i){
-  const list = getMarcas(); list.splice(i,1); salvarMarcas(list);
-  cfgRenderMarcas(); cfgPopulateSelects();
-}
-
-function cfgAddResp(){
-  const val = document.getElementById('cfg_novo_resp')?.value?.trim();
-  if(!val){ showToast('⚠️','Informe o nome.'); return; }
-  const list = getResps();
-  if(list.includes(val)){ showToast('⚠️','Responsável já existe.'); return; }
-  list.push(val); salvarResps(list);
-  document.getElementById('cfg_novo_resp').value = '';
-  cfgRenderResps(); cfgPopulateSelects();
-  showToast('✅','Responsável adicionado!');
-}
-
-function cfgRemoverResp(i){
-  const list = getResps(); list.splice(i,1); salvarResps(list);
-  cfgRenderResps(); cfgPopulateSelects();
-}
-
-function cfgRenderMarcas(){
-  const list = getMarcas();
-  const el = document.getElementById('cfg_marcas_list');
-  if(!el) return;
-  el.innerHTML = list.map((m,i) => `
-    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid rgba(91,95,199,.2);border-radius:20px;padding:5px 12px;">
-      <span style="font-size:13px;font-weight:600;color:var(--accent);">${m}</span>
-      <button onclick="cfgRemoverMarca(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
-    </div>`).join('');
-}
-
-function cfgRenderResps(){
-  const list = getResps();
-  const el = document.getElementById('cfg_resps_list');
-  if(!el) return;
-  el.innerHTML = list.length ? list.map((r,i) => `
-    <div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;">
-      <span style="font-size:13px;font-weight:600;color:var(--ink-3);">👤 ${r}</span>
-      <button onclick="cfgRemoverResp(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
-    </div>`).join('') : '<span style="font-size:13px;color:var(--muted);">Nenhum responsável cadastrado.</span>';
-}
-
-function cfgPopulateSelects(){
-  const marcas = getMarcas();
-  const resps  = getResps();
-  // Popular selects de novo lote
-  ['nl_marca','el_marca','lotes_filtro_marca','ped_filtro_marca'].forEach(id => {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const isFilter = id.includes('filtro');
-    const curr = el.value;
-    el.innerHTML = `<option value="">${isFilter?'Todas as marcas':'Selecionar...'}</option>` +
-      marcas.map(m => `<option value="${m}" ${curr===m?'selected':''}>${m}</option>`).join('');
-  });
-  ['nl_resp','el_resp','lotes_filtro_resp','ped_filtro_resp'].forEach(id => {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const isFilter = id.includes('filtro');
-    const curr = el.value;
-    el.innerHTML = `<option value="">${isFilter?'Todos os responsáveis':'Selecionar...'}</option>` +
-      resps.map(r => `<option value="${r}" ${curr===r?'selected':''}>${r}</option>`).join('');
-  });
-}
-
-// ── Nome editável no pedido ──
-function pedSalvarNome(el){
-  if(!_pedAtual) return;
-  const novo = el.textContent.trim();
-  if(!novo){ el.textContent = _pedAtual.nome; return; }
-  _pedAtual.nome = novo;
-  document.getElementById('ped_editor_nome_mob').textContent = novo;
-  pedAutoSave();
-}
-
-// ── DnD na tabela de itens do pedido ──
-let _pedDragIdx = null;
-
-// DnD via delegação de eventos no tbody — funciona mesmo após re-renders
-function initPedDragDrop(){
-  const tbody = document.getElementById('ped_itens_tbody');
-  if(!tbody || tbody._dndReady) return;
-  tbody._dndReady = true;
-
-  tbody.addEventListener('dragstart', e => {
-    const row = e.target.closest('tr[data-ped-idx]');
-    if(!row) return;
-    _pedDragIdx = parseInt(row.dataset.pedIdx);
-    row.style.opacity = '.4';
-    e.dataTransfer.effectAllowed = 'move';
-  });
-
-  tbody.addEventListener('dragend', e => {
-    const row = e.target.closest('tr[data-ped-idx]');
-    if(row) row.style.opacity = '1';
-    tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
-    // Não resetar _pedDragIdx aqui — o drop pode ainda não ter disparado
-  });
-
-  tbody.addEventListener('dragover', e => {
-    e.preventDefault();
-    const row = e.target.closest('tr[data-ped-idx]');
-    tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
-    if(row) row.style.borderTop = '2px solid var(--accent)';
-  });
-
-  tbody.addEventListener('dragleave', e => {
-    if(!tbody.contains(e.relatedTarget)){
-      tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
-    }
-  });
-
-  tbody.addEventListener('drop', e => {
-    e.preventDefault();
-    tbody.querySelectorAll('tr').forEach(r => r.style.borderTop = '');
-    const row = e.target.closest('tr[data-ped-idx]');
-    if(!row) return;
-    const toIdx = parseInt(row.dataset.pedIdx);
-    if(_pedDragIdx === null || _pedDragIdx === toIdx){ _pedDragIdx = null; return; }
-    const arr = _pedAtual.itens;
-    const [moved] = arr.splice(_pedDragIdx, 1);
-    arr.splice(toIdx, 0, moved);
-    _pedAtual.itens = arr;
-    _pedDragIdx = null;
-    pedRenderItens();
-    pedAutoSave();
-  });
-}
-
-
-
 // ══ PEDIDOS SYNC AO SALVAR ══
 // Atualizar pedidos vinculados quando lote muda
 async function sincronizarPedidosDoLote(lote){
