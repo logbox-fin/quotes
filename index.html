@@ -1220,17 +1220,21 @@ async function syncPedidoDelete(id){
 
 async function syncInicial(){
   setSyncing(true);
-  // 1. Sync config PRIMEIRO para ter marcas/responsáveis corretos
-  await syncConfigDown();
-  renderConfig();
-  cfgPopulateSelects();
-  // 2. Resto em paralelo
-  await Promise.all([syncLoteDown(), syncNCMsDown(), syncPedidosDown()]);
-  renderLotes();
-  renderNCMs();
-  renderPedDashboard();
-  setSyncing(false);
-  showToast('✅','Sincronizado!');
+  try{
+    await syncConfigDown();
+    renderConfig();
+    cfgPopulateSelects();
+    await Promise.all([syncLoteDown(), syncNCMsDown(), syncPedidosDown()]);
+    renderLotes();
+    renderNCMs();
+    renderPedDashboard();
+    showToast('✅','Sincronizado!');
+  }catch(e){
+    console.error('syncInicial error:', e);
+    showToast('⚠️','Erro na sincronização. Verifique a conexão.');
+  }finally{
+    setSyncing(false);
+  }
 }
 
 // ══ UTILS ══
