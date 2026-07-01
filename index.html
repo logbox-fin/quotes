@@ -1140,6 +1140,28 @@ function cfgRenderResps(){
     </div>`).join('') : '<span style="font-size:13px;color:var(--muted);">Nenhum responsável cadastrado.</span>';
 }
 
+
+function cfgPopulateSelects(forceEditMarca, forceEditResp){
+  const marcas = getMarcas();
+  const resps  = getResps();
+  ['nl_marca','el_marca','lotes_filtro_marca','ped_filtro_marca'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const isFilter = id.includes('filtro');
+    const curr = (id==='el_marca' && forceEditMarca!==undefined) ? forceEditMarca : el.value;
+    el.innerHTML = `<option value="">${isFilter?'All Brands':'Selecionar...'}</option>` +
+      marcas.map(m => `<option value="${m}" ${curr===m?'selected':''}>${m}</option>`).join('');
+  });
+  ['nl_resp','el_resp','lotes_filtro_resp','ped_filtro_resp'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const isFilter = id.includes('filtro');
+    const curr = (id==='el_resp' && forceEditResp!==undefined) ? forceEditResp : el.value;
+    el.innerHTML = `<option value="">${isFilter?'All Responsible':'Selecionar...'}</option>` +
+      resps.map(r => `<option value="${r}" ${curr===r?'selected':''}>${r}</option>`).join('');
+  });
+}
+
 async function syncConfigUp(cfg){
   try{
     const payload = {
